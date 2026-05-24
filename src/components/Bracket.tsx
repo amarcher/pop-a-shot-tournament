@@ -117,9 +117,9 @@ function BracketSide({
     <section>
       <h3 className="arcade-sm text-sm">{title}</h3>
       <div
-        className="mt-3 grid gap-6 overflow-x-auto pb-4"
+        className="mt-3 grid gap-8 overflow-x-auto pb-4"
         style={{
-          gridTemplateColumns: `repeat(${sideRounds.length}, minmax(220px, 1fr))`,
+          gridTemplateColumns: `repeat(${sideRounds.length}, minmax(360px, 1fr))`,
         }}
       >
         {sideRounds.map((round, roundIdx) => {
@@ -127,9 +127,9 @@ function BracketSide({
             .filter((m) => m.match.roundId === round.id)
             .sort((a, b) => a.match.slotIndex - b.match.slotIndex);
           // Spacing doubles per round; paired round-1 matches line up with
-          // their round-2 parent visually.
-          const gap = 12 * Math.pow(2, roundIdx);
-          const padTop = (Math.pow(2, roundIdx) - 1) * 56;
+          // their round-2 parent visually. Bigger match cards → bigger gaps.
+          const gap = 24 * Math.pow(2, roundIdx);
+          const padTop = (Math.pow(2, roundIdx) - 1) * 110;
           return (
             <div
               key={round.id}
