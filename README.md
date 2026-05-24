@@ -1,36 +1,64 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Pop-a-Shot Tournament
 
-## Getting Started
+A backyard pop-a-shot tournament runner. Players claim a profile, upload a
+selfie, and get re-imagined as an NBA-Jam-style baller — complete with a
+neutral pre-game portrait, a flames-erupting "ON FIRE!" victory pose, and a
+dejected-but-dignified defeat. Matches are binary (operator clicks the
+winner — pop-a-shot itself is 30 seconds of basket-counting offline).
 
-First, run the development server:
+Sister app to [`mtg-dash`](../mtg-dash) — same Next.js 16 + Drizzle + Neon
++ Vercel Blob + Upstash Realtime stack, same identity model, same
+background-job pattern for image generation.
 
-```bash
+## Features
+
+- Four tournament formats: **single elimination**, **double elimination**
+  (with bracket reset), **round robin**, **Swiss pairings**
+- AI-generated NBA-Jam baller portraits in three outcome states (8
+  archetypes: street baller, all-star starter, retro 90s sharpshooter,
+  sky-walking dunker, bench gunner, defensive brick wall, globe-trotting
+  showman, old-school coach player)
+- TV-friendly broadcast view with live SSE updates and on-fire celebration
+- Phone-friendly operator view for clicking winners
+- League-scoped identity (no real auth — friends-only)
+
+## Getting started
+
+```sh
+npm install
+vercel env pull .env.local   # or set DATABASE_URL + FAL_KEY + BLOB_READ_WRITE_TOKEN by hand
+npm run db:migrate           # apply schema to Neon
+npm run db:seed              # creates the "demo" league
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Visit `http://localhost:3000` → redirects to `/leagues/demo` → claim your
+baller → create a tournament → pick a format and roster → start →
+operator clicks winners.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Tournament walk-through
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+1. **Claim a baller** at `/leagues/<slug>/claim`. Enter a display name; you
+   get redirected to `/players/<id>` where you upload a selfie and pick an
+   archetype. Generation runs in the background (~6s on fal, ~90s on local
+   mflux) and the page polls until the three portraits land.
+2. **Create a tournament** at `/leagues/<slug>/events/new`. Name it, pick a
+   format, check the roster, click create. You land on the event page in
+   "draft" status.
+3. **Start the tournament**. The bracket / pairings get materialized and
+   the event flips to "active".
+4. **Click winners** at `/events/<id>/play` (phone-friendly). For Swiss,
+   come back to `/events/<id>` between rounds to click "Pair next round".
+5. **Broadcast** at `/events/<id>/broadcast` for the TV. Auto-updates via
+   SSE when winners are clicked.
 
-## Learn More
+## Scripts
 
-To learn more about Next.js, take a look at the following resources:
+- `npm run dev` — Next.js dev server
+- `npm run build` — production build
+- `npm test` — vitest unit tests
+- `npm run lint` — ESLint
+- `npm run verify` — end-to-end format walk-through (no FLUX)
+- `npm run db:generate` / `db:migrate` / `db:seed` — Drizzle workflow
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+See [AGENTS.md](./AGENTS.md) for the full architecture and conventions.

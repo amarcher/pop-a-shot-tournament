@@ -1,26 +1,237 @@
 @import "tailwindcss";
 
+/* ============================================================
+   NBA JAM palette
+   - Background: warm hardwood maple, plank grain
+   - Logo text: bright red 3D, cyan outline, royal blue depth
+   - Surfaces: TV-static gray panels with cyan inset + royal blue border
+   ============================================================ */
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #c5853d;          /* warm maple */
+  --background-deep: #9b6020;     /* darker plank stripes */
+  --background-shadow: #5a3416;
+  --foreground: #fef6e0;          /* cream type */
+
+  --jam-red: #e63946;             /* NBA JAM letter fill */
+  --jam-red-deep: #b1232f;
+  --jam-cyan: #1cc8d8;            /* cyan letter outline */
+  --jam-cyan-deep: #0a7f8d;
+  --jam-blue: #1e3a8c;            /* royal blue depth + border */
+  --jam-blue-deep: #0f1f5a;
+  --jam-yellow: #ffd400;          /* hot yellow for "ON FIRE!" */
+  --jam-orange: #ff7a00;
+
+  --static: #2a2a2a;               /* TV-static gray panel */
+  --static-light: #4a4a4a;
+  --bezel: #0a0a0a;                /* CRT bezel black */
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-jam-red: var(--jam-red);
+  --color-jam-red-deep: var(--jam-red-deep);
+  --color-jam-cyan: var(--jam-cyan);
+  --color-jam-cyan-deep: var(--jam-cyan-deep);
+  --color-jam-blue: var(--jam-blue);
+  --color-jam-blue-deep: var(--jam-blue-deep);
+  --color-jam-yellow: var(--jam-yellow);
+  --color-jam-orange: var(--jam-orange);
+  --color-static: var(--static);
   --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-display: var(--font-bungee);
+  --font-display-inline: var(--font-bungee-inline);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
+html,
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans), system-ui, sans-serif;
+}
+
+/* Hardwood maple court — alternating plank stripes + soft court-line vignette.
+   Stripes are wide and subtle so they don't fight the foreground content. */
+body {
+  background-image:
+    radial-gradient(
+      ellipse at center top,
+      rgba(0, 0, 0, 0.15) 0%,
+      transparent 65%
+    ),
+    repeating-linear-gradient(
+      0deg,
+      var(--background) 0px,
+      var(--background) 92px,
+      var(--background-deep) 92px,
+      var(--background-deep) 94px,
+      var(--background) 94px,
+      var(--background) 188px
+    );
+  min-height: 100vh;
+}
+
+/* ============================================================
+   .arcade — chunky NBA JAM logo treatment
+   Red fill, cyan stroke, royal-blue 3D extrude, soft drop-shadow.
+   Use on headings and any big arcade-style text.
+   ============================================================ */
+.arcade {
+  font-family: var(--font-display), "Courier New", monospace;
+  font-weight: 900;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--jam-red);
+  /* The cyan outline is a stack of 1px shadows around the fill — works
+     across browsers without -webkit-text-stroke painting on the fill. */
+  text-shadow:
+    -1px -1px 0 var(--jam-cyan),
+    1px -1px 0 var(--jam-cyan),
+    -1px 1px 0 var(--jam-cyan),
+    1px 1px 0 var(--jam-cyan),
+    -2px 0 0 var(--jam-cyan),
+    2px 0 0 var(--jam-cyan),
+    0 -2px 0 var(--jam-cyan),
+    0 2px 0 var(--jam-cyan),
+    /* royal-blue 3D extrude */
+    3px 4px 0 var(--jam-blue),
+    4px 5px 0 var(--jam-blue-deep),
+    /* soft floor shadow */
+    5px 8px 12px rgba(0, 0, 0, 0.5);
+}
+
+/* Smaller arcade tag (eyebrows, section labels) — same color recipe but
+   without the heavy 3D so it stays legible at 12-14px. */
+.arcade-sm {
+  font-family: var(--font-display), "Courier New", monospace;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--jam-yellow);
+  text-shadow:
+    -1px -1px 0 var(--jam-blue),
+    1px -1px 0 var(--jam-blue),
+    -1px 1px 0 var(--jam-blue),
+    1px 1px 0 var(--jam-blue);
+}
+
+/* "ON FIRE!" treatment — yellow→orange→red gradient fill on chunky letters,
+   with a hot glow halo. Reserve for victory celebrations. */
+.on-fire {
+  font-family: var(--font-display), "Courier New", monospace;
+  font-weight: 900;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  background: linear-gradient(
+    180deg,
+    #ffffff 0%,
+    var(--jam-yellow) 25%,
+    var(--jam-orange) 55%,
+    var(--jam-red) 100%
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 0 14px rgba(255, 170, 0, 0.85))
+    drop-shadow(0 4px 0 rgba(30, 58, 140, 0.6));
+}
+
+/* ============================================================
+   .scoreboard — TV-static gray panel with cyan inset + royal blue border
+   Use as the container background for cards/sections so they feel like
+   the arcade cabinet's scoreboard display.
+   ============================================================ */
+.scoreboard {
+  background-color: var(--static);
+  /* Faint horizontal scan-lines so it reads as a CRT panel. */
+  background-image: repeating-linear-gradient(
+    0deg,
+    rgba(255, 255, 255, 0.04) 0px,
+    rgba(255, 255, 255, 0.04) 1px,
+    transparent 1px,
+    transparent 3px
+  );
+  border: 4px solid var(--jam-blue);
+  box-shadow:
+    inset 0 0 0 2px var(--jam-cyan),
+    inset 0 0 24px rgba(0, 0, 0, 0.4),
+    0 6px 0 var(--jam-blue-deep),
+    0 12px 24px rgba(0, 0, 0, 0.45);
+  border-radius: 6px;
+  color: var(--foreground);
+}
+
+/* The CRT bezel wraps a scoreboard with a black outer frame — use for the
+   "headline" broadcast panel where we want the full TV-cabinet feel. */
+.bezel {
+  background: var(--bezel);
+  padding: 14px;
+  border-radius: 16px;
+  box-shadow:
+    inset 0 0 0 2px #000,
+    0 16px 32px rgba(0, 0, 0, 0.55);
+}
+
+/* ============================================================
+   Buttons — NBA JAM "press-the-button" cyan-and-yellow style
+   ============================================================ */
+.jam-button {
+  font-family: var(--font-display), "Courier New", monospace;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.65rem 1.25rem;
+  color: var(--bezel);
+  background: linear-gradient(180deg, var(--jam-yellow) 0%, var(--jam-orange) 100%);
+  border: 3px solid var(--jam-blue);
+  border-radius: 9999px;
+  box-shadow:
+    inset 0 -3px 0 rgba(0, 0, 0, 0.25),
+    inset 0 2px 0 rgba(255, 255, 255, 0.6),
+    0 4px 0 var(--jam-blue-deep),
+    0 6px 12px rgba(0, 0, 0, 0.4);
+  transition: transform 0.05s ease, box-shadow 0.05s ease;
+  cursor: pointer;
+}
+.jam-button:hover {
+  filter: brightness(1.08);
+}
+.jam-button:active {
+  transform: translateY(2px);
+  box-shadow:
+    inset 0 -2px 0 rgba(0, 0, 0, 0.25),
+    inset 0 2px 0 rgba(255, 255, 255, 0.6),
+    0 2px 0 var(--jam-blue-deep);
+}
+.jam-button:disabled {
+  filter: grayscale(0.7) brightness(0.7);
+  cursor: not-allowed;
+}
+
+/* Secondary button: cyan/teal pill for non-primary actions. */
+.jam-button-secondary {
+  font-family: var(--font-display), "Courier New", monospace;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.55rem 1.1rem;
+  color: var(--bezel);
+  background: linear-gradient(180deg, #6df0fb 0%, var(--jam-cyan) 100%);
+  border: 3px solid var(--jam-blue);
+  border-radius: 9999px;
+  box-shadow:
+    inset 0 -3px 0 rgba(0, 0, 0, 0.25),
+    inset 0 2px 0 rgba(255, 255, 255, 0.6),
+    0 4px 0 var(--jam-blue-deep);
+  cursor: pointer;
+}
+.jam-button-secondary:hover {
+  filter: brightness(1.08);
 }
