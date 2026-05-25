@@ -16,23 +16,39 @@ function PlayerPortrait({
   isLoser: boolean;
   size: Size;
 }) {
-  const dim =
+  const widthClass =
     size === "lg"
-      ? "h-32 w-32 sm:h-44 sm:w-44"
+      ? "max-w-32 sm:max-w-44"
       : size === "sm"
-        ? "h-20 w-20 sm:h-24 sm:w-24"
-        : "h-24 w-24 sm:h-32 sm:w-32";
+        ? "max-w-20 sm:max-w-24"
+        : "max-w-24 sm:max-w-32";
+
+  // Beveled border: light cyan top/left, deep cyan bottom/right by default.
+  // Winners flip to a gold→orange bevel + orange ambient glow.
+  const bevelStyle: React.CSSProperties = isWinner
+    ? {
+        borderTopColor: "#ffe87a",
+        borderLeftColor: "#ffe87a",
+        borderBottomColor: "#c25400",
+        borderRightColor: "#c25400",
+        boxShadow:
+          "0 4px 0 var(--jam-blue-deep), 0 0 36px -4px var(--jam-orange)",
+      }
+    : {
+        borderTopColor: "#6df0fb",
+        borderLeftColor: "#6df0fb",
+        borderBottomColor: "var(--jam-cyan-deep)",
+        borderRightColor: "var(--jam-cyan-deep)",
+        boxShadow: "0 4px 0 var(--jam-blue-deep), 0 8px 14px rgba(0,0,0,0.4)",
+      };
 
   return (
     <div className="flex w-full flex-col items-center gap-2">
       <div
-        className={`relative overflow-hidden rounded-xl border-4 transition sm:rounded-2xl ${
-          isWinner
-            ? "border-jam-yellow shadow-[0_0_40px_-8px_var(--jam-orange)]"
-            : isLoser
-              ? "border-jam-blue/40 opacity-60 grayscale-[40%]"
-              : "border-jam-blue"
-        } ${dim}`}
+        className={`relative aspect-[3/4] w-full overflow-hidden border-4 border-solid bg-[#7a4a1a] transition ${
+          isLoser ? "opacity-75 grayscale-[40%]" : ""
+        } ${widthClass}`}
+        style={bevelStyle}
       >
         {avatar ? (
           // eslint-disable-next-line @next/next/no-img-element
@@ -45,7 +61,7 @@ function PlayerPortrait({
           <div className="absolute inset-0 bg-gradient-to-br from-orange-900/40 to-amber-950/40" />
         )}
         {isWinner && (
-          <span className="arcade-sm absolute right-1 top-1 rounded bg-bezel/80 px-1.5 py-0.5 text-[10px] leading-none">
+          <span className="arcade-sm absolute right-1 top-1 rounded bg-bezel/85 px-1.5 py-0.5 text-[10px] leading-none">
             WIN
           </span>
         )}
@@ -88,8 +104,6 @@ export function MatchCard({
   const aWon = !!winnerId && winnerId === playerA?.id;
   const bWon = !!winnerId && winnerId === playerB?.id;
 
-  // Pre-match: both portraits show neutral. Post-match: winner shows victory,
-  // loser shows defeated.
   const aAvatar = playerA
     ? completed
       ? pickMatchOutcomeAvatar(playerA, winnerId)
@@ -104,9 +118,16 @@ export function MatchCard({
   const canReport =
     showActions && actionFormAction && !completed && playerA && playerB;
 
+  const vsSizeClass =
+    size === "lg"
+      ? "text-3xl sm:text-5xl"
+      : size === "sm"
+        ? "text-xl sm:text-2xl"
+        : "text-2xl sm:text-4xl";
+
   return (
-    <div className="scoreboard p-3 sm:p-4">
-      <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-start justify-center gap-2 sm:gap-3">
+    <div>
+      <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center justify-items-center gap-2 sm:gap-3">
         <PlayerPortrait
           player={playerA}
           avatar={aAvatar}
@@ -115,8 +136,8 @@ export function MatchCard({
           size={size}
         />
         <span
-          className={`arcade-sm mt-10 shrink-0 text-base sm:mt-14 sm:text-xl ${
-            winnerId ? "text-jam-yellow" : "text-jam-cyan/60"
+          className={`arcade shrink-0 leading-none ${vsSizeClass} ${
+            winnerId ? "text-jam-yellow" : ""
           }`}
         >
           VS
