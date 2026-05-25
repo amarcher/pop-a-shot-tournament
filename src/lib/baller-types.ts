@@ -71,7 +71,7 @@ const STATE_SUFFIX: Record<BallerState, string> = {
   neutral:
     " Confident game face, basketball tucked under one arm, waiting for tip-off, steady eyes — the pre-game stare-down.",
   victory:
-    " They have just won the match: roaring celebration mid-shout, head thrown back, big energy — bright yellow-orange flames erupting from their shoulders and arms, basketball glowing red-hot with sparks, crowd losing it in the background, golden rim-light blazing.",
+    " They have just won the match, but the seed identity must dominate the image. Keep their apparent age, face, hair, body proportions, and gender presentation from the reference photo. If the reference is a baby or child, the result must still clearly look like that baby or child, not an adult athlete. Keep the face visible and recognizable; the expression can be excited but must stay rooted in the source person. Add bright yellow-orange flames, red-hot basketball glow, sparks, and golden rim-light around them without replacing them with a different player.",
   defeated:
     " The match is over and they did not win: head hung, hands on knees or hanging at their sides, breath caught, sweat-streaked, comedic exhausted dejection — visibly cooled-off, no flames, dimmer arena lighting, posture solemn but still dignified. Family-friendly, no anguish or tears.",
 };
@@ -89,7 +89,9 @@ export function buildBallerPrompt(
   if (!a) throw new Error(`Unknown baller archetype: ${archetype}`);
   const extra = freeform?.trim() ? ` Also: ${freeform.trim()}.` : "";
   return (
-    `Keep this exact person — their face, skin tone, hair, and expression must stay identical. ` +
+    `Use the uploaded seed image as the source of truth for the person. ` +
+    `Keep this exact person — their apparent age, face shape, skin tone, hair, expression cues, body proportions, and gender presentation must stay recognizable. ` +
+    `Do not replace them with a generic athlete or change a baby/child into an adult. ` +
     `Re-imagine them as a 90s-arcade-style basketball player: ${a.costume}.${extra} ` +
     `Shoulders-up portrait, bold saturated colors, dramatic rim-light, painterly polygon-art style. ` +
     `Do not change their face or facial features. ` +
