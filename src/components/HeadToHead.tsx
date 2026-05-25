@@ -15,6 +15,7 @@ export function HeadToHead({
   playerA: Player | null;
   playerB: Player | null;
 }) {
+  const completed = match.status === "complete";
   const aIsWinner = match.winnerId !== null && match.winnerId === playerA?.id;
   const bIsWinner = match.winnerId !== null && match.winnerId === playerB?.id;
   const aAvatar = playerA
@@ -29,30 +30,41 @@ export function HeadToHead({
     : null;
 
   return (
-    <div className="relative grid grid-cols-1 items-center gap-6 md:grid-cols-[1fr_auto_1fr]">
-      <Portrait
-        player={playerA}
-        avatar={aAvatar}
-        isWinner={aIsWinner}
-        align="right"
-      />
-      <div className="text-center">
+    <div className="relative">
+      <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-6">
+        <div className="flex justify-end">
+          <Portrait player={playerA} avatar={aAvatar} isWinner={aIsWinner} />
+        </div>
         <span
-          className={`arcade text-6xl ${
-            match.winnerId ? "on-fire" : "text-jam-cyan/50"
-          }`}
+          className="arcade shrink-0 leading-none text-5xl sm:text-7xl"
+          style={completed ? { color: "transparent" } : undefined}
         >
           VS
         </span>
+        <div className="flex justify-start">
+          <Portrait player={playerB} avatar={bAvatar} isWinner={bIsWinner} />
+        </div>
       </div>
-      <Portrait
-        player={playerB}
-        avatar={bAvatar}
-        isWinner={bIsWinner}
-        align="left"
-      />
-      {match.winnerId && (
-        <p className="col-span-1 md:col-span-3 -mt-2 text-center arcade on-fire text-4xl animate-pulse">
+
+      <div className="mt-5 grid grid-cols-2 gap-8 text-center">
+        <p
+          className={`arcade text-2xl sm:text-3xl ${
+            aIsWinner ? "on-fire" : ""
+          } ${playerA ? "" : "italic text-jam-cyan/50"}`}
+        >
+          {playerA?.displayName.split(" ").slice(-1)[0].toUpperCase() ?? "TBD"}
+        </p>
+        <p
+          className={`arcade text-2xl sm:text-3xl ${
+            bIsWinner ? "on-fire" : ""
+          } ${playerB ? "" : "italic text-jam-cyan/50"}`}
+        >
+          {playerB?.displayName.split(" ").slice(-1)[0].toUpperCase() ?? "TBD"}
+        </p>
+      </div>
+
+      {completed && (
+        <p className="mt-4 text-center arcade on-fire text-4xl sm:text-6xl animate-pulse">
           ON FIRE!
         </p>
       )}
@@ -64,48 +76,48 @@ function Portrait({
   player,
   avatar,
   isWinner,
-  align,
 }: {
   player: Player | null;
   avatar: string | null;
   isWinner: boolean;
-  align: "left" | "right";
 }) {
+  const bevelStyle: React.CSSProperties = isWinner
+    ? {
+        borderTopColor: "#ffe87a",
+        borderLeftColor: "#ffe87a",
+        borderBottomColor: "#c25400",
+        borderRightColor: "#c25400",
+        boxShadow:
+          "0 5px 0 var(--jam-blue-deep), 0 0 80px -5px var(--jam-orange)",
+      }
+    : {
+        borderTopColor: "#6df0fb",
+        borderLeftColor: "#6df0fb",
+        borderBottomColor: "var(--jam-cyan-deep)",
+        borderRightColor: "var(--jam-cyan-deep)",
+        boxShadow: "0 5px 0 var(--jam-blue-deep), 0 12px 22px rgba(0,0,0,0.4)",
+      };
+
   return (
     <div
-      className={`flex flex-col gap-3 ${
-        align === "right" ? "items-end" : "items-start"
-      }`}
+      className="relative aspect-[3/4] w-full max-w-md overflow-hidden border-[5px] border-solid bg-[#7a4a1a] transition"
+      style={bevelStyle}
     >
-      <div
-        className={`relative aspect-square w-full max-w-md overflow-hidden rounded-3xl border-4 transition ${
-          isWinner
-            ? "border-jam-yellow shadow-[0_0_80px_-5px_var(--jam-orange)]"
-            : "border-jam-blue/60"
-        }`}
-      >
-        {avatar ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={avatar}
-            alt={player?.displayName ?? "TBD"}
-            className="absolute inset-0 h-full w-full object-cover"
-          />
-        ) : (
-          <div className="absolute inset-0 bg-gradient-to-br from-orange-900/40 to-amber-950/40" />
-        )}
-      </div>
-      <p
-        className={`arcade text-2xl ${
-          player
-            ? isWinner
-              ? "on-fire"
-              : "text-foreground"
-            : "text-jam-cyan/50 italic"
-        }`}
-      >
-        {player?.displayName ?? "TBD"}
-      </p>
+      {avatar ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={avatar}
+          alt={player?.displayName ?? "TBD"}
+          className="absolute inset-0 h-full w-full object-cover"
+        />
+      ) : (
+        <div className="absolute inset-0 bg-gradient-to-br from-orange-900/40 to-amber-950/40" />
+      )}
+      {isWinner && (
+        <span className="arcade-sm absolute right-2 top-2 rounded bg-bezel/85 px-2 py-1 text-xs leading-none">
+          WIN
+        </span>
+      )}
     </div>
   );
 }

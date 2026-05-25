@@ -52,23 +52,32 @@ body {
   font-family: var(--font-sans), system-ui, sans-serif;
 }
 
-/* Hardwood maple court — alternating plank stripes + soft court-line vignette.
-   Stripes are wide and subtle so they don't fight the foreground content. */
+/* Hardwood maple court — uniform-width narrow planks. Just planks: vertical
+   seams, slight plank-to-plank tint variation, staggered horizontal plank-end
+   cuts. No vignette, no grain, no knots. */
 body {
   background-image:
-    radial-gradient(
-      ellipse at center top,
-      rgba(0, 0, 0, 0.15) 0%,
-      transparent 65%
-    ),
+    /* staggered plank ends */
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='500'><g fill='%235a3416'><rect x='0' y='108' width='48' height='2'/><rect x='0' y='340' width='48' height='2'/><rect x='50' y='198' width='48' height='2'/><rect x='50' y='428' width='48' height='2'/><rect x='100' y='62' width='48' height='2'/><rect x='100' y='278' width='48' height='2'/><rect x='150' y='148' width='48' height='2'/><rect x='150' y='382' width='48' height='2'/></g><g fill='%23ffe2a8' fill-opacity='0.18'><rect x='0' y='110' width='48' height='1'/><rect x='0' y='342' width='48' height='1'/><rect x='50' y='200' width='48' height='1'/><rect x='50' y='430' width='48' height='1'/><rect x='100' y='64' width='48' height='1'/><rect x='100' y='280' width='48' height='1'/><rect x='150' y='150' width='48' height='1'/><rect x='150' y='384' width='48' height='1'/></g></svg>"),
+    /* plank wash — alternates cool tint */
     repeating-linear-gradient(
-      0deg,
-      var(--background) 0px,
-      var(--background) 92px,
-      var(--background-deep) 92px,
-      var(--background-deep) 94px,
-      var(--background) 94px,
-      var(--background) 188px
+      90deg,
+      transparent 0,
+      transparent 50px,
+      rgba(90, 52, 22, 0.18) 50px,
+      rgba(90, 52, 22, 0.18) 100px,
+      transparent 100px,
+      transparent 150px,
+      rgba(120, 75, 28, 0.14) 150px,
+      rgba(120, 75, 28, 0.14) 200px
+    ),
+    /* plank seams */
+    repeating-linear-gradient(
+      90deg,
+      var(--background) 0,
+      var(--background) 48px,
+      var(--background-shadow) 48px,
+      var(--background-shadow) 50px
     );
   min-height: 100vh;
   overflow-x: hidden;
@@ -122,12 +131,14 @@ body {
     1px 1px 0 var(--jam-blue);
 }
 
-/* "ON FIRE!" treatment — yellow→orange→red gradient fill on chunky letters,
-   with a hot glow halo. Reserve for victory celebrations. */
+/* "ON FIRE!" treatment — white→yellow→orange→red gradient on Bungee Inline
+   letterforms (the center-stripe-carved variant). 1px royal-blue outline
+   preserves the carved letter counters (especially the E); 6px amber glow
+   stays tight so it doesn't bleed back into them. */
 .on-fire {
-  font-family: var(--font-display), "Courier New", monospace;
-  font-weight: 900;
-  letter-spacing: 0;
+  font-family: var(--font-display-inline), var(--font-display), "Courier New", monospace;
+  font-weight: 400;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
   background: linear-gradient(
     180deg,
@@ -139,8 +150,13 @@ body {
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
-  filter: drop-shadow(0 0 14px rgba(255, 170, 0, 0.85))
-    drop-shadow(0 4px 0 rgba(30, 58, 140, 0.6));
+  filter:
+    drop-shadow(1px 0 0 var(--jam-blue-deep))
+    drop-shadow(-1px 0 0 var(--jam-blue-deep))
+    drop-shadow(0 1px 0 var(--jam-blue-deep))
+    drop-shadow(0 -1px 0 var(--jam-blue-deep))
+    drop-shadow(0 0 6px rgba(255, 170, 0, 0.7))
+    drop-shadow(0 3px 0 rgba(30, 58, 140, 0.55));
 }
 
 /* ============================================================
@@ -226,23 +242,24 @@ body {
   background: linear-gradient(180deg, var(--jam-yellow) 0%, var(--jam-orange) 100%);
 }
 
-.panel-link {
-  border: 2px solid rgba(28, 200, 216, 0.72);
-  border-radius: 9999px;
-  color: var(--foreground);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 2.5rem;
-  padding: 0.55rem 0.9rem;
-  font-size: 0.85rem;
-  font-weight: 800;
-  text-decoration: none;
+/* Inline links wear the display font — there are no "quiet" links in
+   the system. Cyan underline, yellow on hover. Buttons disable this with
+   text-decoration: none on their own class. */
+a {
+  font-family: var(--font-display), "Courier New", monospace;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--jam-cyan);
+  text-decoration: underline;
+  text-decoration-color: var(--jam-cyan);
+  text-underline-offset: 4px;
+  text-decoration-thickness: 2px;
 }
 
-.panel-link:hover {
-  border-color: var(--jam-yellow);
+a:hover {
   color: var(--jam-yellow);
+  text-decoration-color: var(--jam-yellow);
 }
 
 /* The CRT bezel wraps a scoreboard with a black outer frame — use for the
@@ -286,6 +303,7 @@ body {
   line-height: 1.05;
   white-space: normal;
   overflow-wrap: anywhere;
+  text-decoration: none;
 }
 .jam-button:hover {
   filter: brightness(1.08);
@@ -328,6 +346,7 @@ body {
   line-height: 1.05;
   white-space: normal;
   overflow-wrap: anywhere;
+  text-decoration: none;
 }
 .jam-button-secondary:hover {
   filter: brightness(1.08);
@@ -413,8 +432,7 @@ body {
   }
 
   .jam-button,
-  .jam-button-secondary,
-  .panel-link {
+  .jam-button-secondary {
     width: 100%;
   }
 
