@@ -5,6 +5,7 @@ import {
   sweepStaleBallerJobs,
 } from "@/db/queries";
 import { isBallerArchetype } from "@/lib/baller-types";
+import { renamePlayerAction } from "@/app/events/actions";
 import { BallerForm } from "./BallerForm";
 import { BallerGallery } from "./BallerGallery";
 import { PollWhileGenerating } from "./PollWhileGenerating";
@@ -80,7 +81,33 @@ export default async function PlayerPage({
         </section>
       )}
 
-      <section className="scoreboard mt-12 p-6">
+      <section className="scoreboard mt-8 p-6">
+        <h2 className="arcade-sm text-sm">Edit name</h2>
+        <form
+          action={renamePlayerAction}
+          className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end"
+        >
+          <input type="hidden" name="playerId" value={player.id} />
+          <label className="flex-1">
+            <span className="block text-xs uppercase tracking-wider text-jam-yellow">
+              Display name
+            </span>
+            <input
+              name="name"
+              required
+              maxLength={80}
+              autoComplete="off"
+              defaultValue={player.displayName}
+              className="mt-1 w-full rounded-lg border-2 border-jam-blue bg-black/60 px-3 py-2 text-foreground placeholder:text-foreground/30 focus:border-jam-cyan focus:outline-none"
+            />
+          </label>
+          <button type="submit" className="jam-button text-xs">
+            Save
+          </button>
+        </form>
+      </section>
+
+      <section className="scoreboard mt-8 p-6">
         <h2 className="arcade-sm text-sm">
           {hasPortraits ? "Regenerate" : "Upload selfie + pick archetype"}
         </h2>

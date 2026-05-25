@@ -104,6 +104,29 @@ export async function claimLeaguePlayerAction(formData: FormData) {
   redirect(`/leagues/${league.slug}`);
 }
 
+/**
+ * Rename a player's display name. Nickname stays put — it's deterministic
+ * from the original name and the user may have grown attached to it.
+ */
+export async function renamePlayerAction(formData: FormData) {
+  const playerId = String(formData.get("playerId") ?? "");
+  const name = String(formData.get("name") ?? "").trim();
+  if (!playerId) throw new Error("playerId required");
+  if (!name) throw new Error("Display name required");
+  if (name.length > 80) throw new Error("Display name too long (max 80 chars)");
+
+  const [updated] = await db
+    .update(players)
+    .set({ displayName: name })
+    .where(eq(players.id, playerId))
+    .returning({ leagueId: players.leagueId });
+  if (!updated) throw new Error("Player not found");
+
+  revalidatePath(`/players/${playerId}`);
+  const league = await getLeagueById(updated.leagueId);
+  if (league) revalidatePath(`/leagues/${league.slug}`);
+}
+
 // ---------------- Baller image generation ----------------
 
 /**
