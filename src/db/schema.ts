@@ -69,6 +69,7 @@ export const players = pgTable(
       .references(() => leagues.id, { onDelete: "cascade" }),
     leagueToken: text("league_token").notNull(),
     displayName: text("display_name").notNull(),
+    nickname: text("nickname"),
     avatarNeutralUrl: text("avatar_neutral_url"),
     avatarVictoryUrl: text("avatar_victory_url"),
     avatarDefeatedUrl: text("avatar_defeated_url"),

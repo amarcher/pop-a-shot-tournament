@@ -2,6 +2,11 @@ import type { Player } from "@/db/schema";
 
 const STATES = [
   {
+    key: "selfie",
+    label: "Seed image",
+    urlField: "selfieUrl" as const,
+  },
+  {
     key: "neutral",
     label: "Pre-game",
     urlField: "avatarNeutralUrl" as const,
@@ -20,7 +25,7 @@ const STATES = [
 
 export function BallerGallery({ player }: { player: Player }) {
   return (
-    <ul className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+    <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
       {STATES.map((s) => {
         const url = player[s.urlField];
         return (

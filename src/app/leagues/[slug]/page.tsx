@@ -90,6 +90,11 @@ export default async function LeagueHomePage({
                         <p className="truncate text-sm font-black uppercase text-foreground">
                           {p.displayName}
                         </p>
+                        {p.nickname && (
+                          <p className="truncate text-xs font-bold uppercase text-jam-yellow">
+                            {p.nickname}
+                          </p>
+                        )}
                       </div>
                     </div>
                   </Link>

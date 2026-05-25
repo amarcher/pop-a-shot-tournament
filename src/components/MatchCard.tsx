@@ -57,6 +57,11 @@ function PlayerPortrait({
       >
         {player?.displayName ?? "TBD"}
       </p>
+      {player?.nickname && (
+        <p className="w-full truncate text-center text-[10px] font-bold uppercase text-jam-yellow/80">
+          {player.nickname}
+        </p>
+      )}
     </div>
   );
 }
