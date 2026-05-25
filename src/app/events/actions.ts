@@ -26,8 +26,13 @@ import {
   setBallerPortraits,
   setEventStatus,
 } from "@/db/queries";
-import { generateBallerVariantsFromSelfie } from "@/lib/baller";
+import {
+  generateBallerAvatarVariants,
+  normalizeSelfieToSquareJpeg,
+  uploadBallerSelfie,
+} from "@/lib/baller";
 import { isBallerArchetype } from "@/lib/baller-types";
+import { generateBallerNickname } from "@/lib/nickname";
 import {
   pairNextSwissRound,
   seedDoubleElim,
@@ -67,6 +72,7 @@ export async function createLeaguePlayerAction(formData: FormData) {
       leagueId: league.id,
       leagueToken: token,
       displayName: name,
+      nickname: generateBallerNickname(name),
     })
     .returning();
 
@@ -119,7 +125,11 @@ export async function generateBallerAction(formData: FormData) {
     throw new Error("Selfie file required");
   }
 
-  await setBallerJobStarted(playerId, archetypeRaw);
+  const rawSelfie = Buffer.from(await selfie.arrayBuffer());
+  const selfieBuf = await normalizeSelfieToSquareJpeg(rawSelfie);
+  const selfieUrl = await uploadBallerSelfie(playerId, selfieBuf);
+
+  await setBallerJobStarted(playerId, archetypeRaw, selfieUrl);
 
   const provider = process.env.IMAGE_GEN_PROVIDER ?? "fal";
   console.log(
@@ -129,15 +139,16 @@ export async function generateBallerAction(formData: FormData) {
   after(async () => {
     const startedAt = Date.now();
     try {
-      const urls = await generateBallerVariantsFromSelfie({
+      const avatars = await generateBallerAvatarVariants({
         playerId,
-        selfie,
+        selfieBuf,
         archetype: archetypeRaw,
         freeform: freeform || undefined,
         // Vercel kills functions at 300s; leave a 60s margin so we surface
         // a clean error rather than getting whacked mid-write.
         signal: AbortSignal.timeout(240_000),
       });
+      const urls = { selfieUrl, ...avatars };
       await setBallerPortraits(playerId, urls);
       const ms = Date.now() - startedAt;
       console.log(`[baller-gen] done for ${playerId} in ${ms}ms`);

@@ -49,7 +49,9 @@ function isHeic(buf: Buffer): boolean {
  * `fit: contain` keeps the whole frame so we never chop a face out of an
  * off-center selfie.
  */
-async function selfieToSquareJpeg(input: Buffer): Promise<Buffer> {
+export async function normalizeSelfieToSquareJpeg(
+  input: Buffer
+): Promise<Buffer> {
   let decoded = input;
   if (isHeic(input)) {
     const out = await heicConvert({
@@ -109,6 +111,13 @@ async function uploadPortrait(
   return `/${blobKey.replace(/\.jpg$/, "")}?v=${Date.now()}`;
 }
 
+export async function uploadBallerSelfie(
+  playerId: string,
+  selfieBuf: Buffer
+): Promise<string> {
+  return uploadPortrait(`avatars/${playerId}/selfie.jpg`, selfieBuf);
+}
+
 // ---------------- Pipeline ----------------
 
 export type BallerVariantResult = {
@@ -118,18 +127,14 @@ export type BallerVariantResult = {
   avatarDefeatedUrl: string;
 };
 
-export async function generateBallerVariantsFromSelfie(args: {
+export async function generateBallerAvatarVariants(args: {
   playerId: string;
-  selfie: File;
+  selfieBuf: Buffer;
   archetype: BallerArchetype;
   freeform?: string;
   signal?: AbortSignal;
-}): Promise<BallerVariantResult> {
-  const { playerId, selfie, archetype, freeform, signal } = args;
-
-  const rawBuf = Buffer.from(await selfie.arrayBuffer());
-  const selfieBuf = await selfieToSquareJpeg(rawBuf);
-
+}): Promise<Omit<BallerVariantResult, "selfieUrl">> {
+  const { playerId, selfieBuf, archetype, freeform, signal } = args;
   await probeImageGen(signal);
 
   // Three sequential /edit calls, same input buffer, three state-specific
@@ -147,17 +152,39 @@ export async function generateBallerVariantsFromSelfie(args: {
 
   // Stable per-player blob keys. Regen overwrites in place; the ?v= suffix
   // pushes new bytes through the browser cache.
-  const [selfieUrl, neutralUrl, victoryUrl, defeatedUrl] = await Promise.all([
-    uploadPortrait(`avatars/${playerId}/selfie.jpg`, selfieBuf),
+  const [neutralUrl, victoryUrl, defeatedUrl] = await Promise.all([
     uploadPortrait(`avatars/${playerId}/neutral.jpg`, buffers.neutral),
     uploadPortrait(`avatars/${playerId}/victory.jpg`, buffers.victory),
     uploadPortrait(`avatars/${playerId}/defeated.jpg`, buffers.defeated),
   ]);
 
   return {
-    selfieUrl,
     avatarNeutralUrl: neutralUrl,
     avatarVictoryUrl: victoryUrl,
     avatarDefeatedUrl: defeatedUrl,
   };
+}
+
+export async function generateBallerVariantsFromSelfie(args: {
+  playerId: string;
+  selfie: File;
+  archetype: BallerArchetype;
+  freeform?: string;
+  signal?: AbortSignal;
+}): Promise<BallerVariantResult> {
+  const { playerId, selfie, archetype, freeform, signal } = args;
+  const rawBuf = Buffer.from(await selfie.arrayBuffer());
+  const selfieBuf = await normalizeSelfieToSquareJpeg(rawBuf);
+  const [selfieUrl, avatars] = await Promise.all([
+    uploadBallerSelfie(playerId, selfieBuf),
+    generateBallerAvatarVariants({
+      playerId,
+      selfieBuf,
+      archetype,
+      freeform,
+      signal,
+    }),
+  ]);
+
+  return { selfieUrl, ...avatars };
 }

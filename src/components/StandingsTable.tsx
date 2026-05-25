@@ -51,6 +51,11 @@ export function StandingsTable({ rows }: { rows: StandingRow[] }) {
             )}
             <span className="flex-1 truncate text-foreground">
               {r.player.displayName}
+              {r.player.nickname && (
+                <span className="ml-2 hidden text-xs font-bold uppercase text-jam-yellow/70 sm:inline">
+                  {r.player.nickname}
+                </span>
+              )}
             </span>
             <span className="text-sm text-jam-cyan">
               <span className="font-bold text-foreground">{r.wins}</span>

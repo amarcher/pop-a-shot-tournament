@@ -66,6 +66,11 @@ export default async function ClaimPage({
                           <p className="truncate text-sm font-black uppercase text-foreground">
                             {p.displayName}
                           </p>
+                          {p.nickname && (
+                            <p className="truncate text-xs font-bold uppercase text-jam-yellow">
+                              {p.nickname}
+                            </p>
+                          )}
                         </div>
                       </div>
                     </button>

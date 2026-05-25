@@ -57,11 +57,19 @@ export async function listLeaguePlayers(leagueId: string): Promise<Player[]> {
     .orderBy(asc(players.createdAt));
 }
 
-export async function setBallerJobStarted(playerId: string, archetype: string) {
+export async function setBallerJobStarted(
+  playerId: string,
+  archetype: string,
+  selfieUrl: string
+) {
   await db
     .update(players)
     .set({
       ballerArchetype: archetype,
+      selfieUrl,
+      avatarNeutralUrl: null,
+      avatarVictoryUrl: null,
+      avatarDefeatedUrl: null,
       jobStartedAt: sql`now()`,
       jobError: null,
     })

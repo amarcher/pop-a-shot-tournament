@@ -23,6 +23,7 @@ export default async function PlayerPage({
 
   const generating = player.jobStartedAt !== null;
   const hasPortraits =
+    player.selfieUrl ||
     player.avatarNeutralUrl ||
     player.avatarVictoryUrl ||
     player.avatarDefeatedUrl;
@@ -36,7 +37,11 @@ export default async function PlayerPage({
             ? { href: `/leagues/${league.slug}`, label: league.name }
             : undefined
         }
-        subtitle="Baller portrait, selfie generation, and player identity."
+        subtitle={
+          player.nickname
+            ? `"${player.nickname}" · Baller portrait, selfie generation, and player identity.`
+            : "Baller portrait, selfie generation, and player identity."
+        }
       />
 
       {generating && (
