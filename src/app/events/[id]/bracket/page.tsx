@@ -2,11 +2,14 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
   getEvent,
+  getLeagueById,
   hydrateMatches,
   listRounds,
 } from "@/db/queries";
 import { Bracket } from "@/components/Bracket";
 import { reportMatchWinnerAction } from "@/app/events/actions";
+import { EventNav } from "@/components/EventNav";
+import { PageHeader } from "@/components/PageHeader";
 
 export default async function BracketPage({
   params,
@@ -33,19 +36,30 @@ export default async function BracketPage({
     );
   }
 
-  const [matches, rounds] = await Promise.all([
+  const [league, matches, rounds] = await Promise.all([
+    getLeagueById(event.leagueId),
     hydrateMatches(event.id),
     listRounds(event.id),
   ]);
 
   return (
-    <main className="mx-auto w-full max-w-7xl px-6 py-10">
-      <p className="arcade-sm text-xs">
-        <Link href={`/events/${event.id}`} className="hover:text-jam-yellow">
-          ← {event.name}
-        </Link>
-      </p>
-      <h1 className="arcade on-fire mt-2 text-4xl">Bracket</h1>
+    <main className="court-shell-wide">
+      <PageHeader
+        title="Bracket"
+        back={{ href: `/events/${event.id}`, label: event.name }}
+        subtitle={
+          league ? (
+            <span>
+              {event.format.replace("_", " ")} in{" "}
+              <span className="font-bold text-jam-yellow">{league.name}</span>
+            </span>
+          ) : (
+            event.format.replace("_", " ")
+          )
+        }
+      >
+        <EventNav eventId={event.id} supportsBracket active="bracket" />
+      </PageHeader>
 
       <div className="mt-8">
         <Bracket

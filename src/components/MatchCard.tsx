@@ -17,12 +17,16 @@ function PlayerPortrait({
   size: Size;
 }) {
   const dim =
-    size === "lg" ? "h-44 w-44" : size === "sm" ? "h-24 w-24" : "h-32 w-32";
+    size === "lg"
+      ? "h-32 w-32 sm:h-44 sm:w-44"
+      : size === "sm"
+        ? "h-20 w-20 sm:h-24 sm:w-24"
+        : "h-24 w-24 sm:h-32 sm:w-32";
 
   return (
     <div className="flex w-full flex-col items-center gap-2">
       <div
-        className={`relative overflow-hidden rounded-2xl border-4 transition ${
+        className={`relative overflow-hidden rounded-xl border-4 transition sm:rounded-2xl ${
           isWinner
             ? "border-jam-yellow shadow-[0_0_40px_-8px_var(--jam-orange)]"
             : isLoser
@@ -47,7 +51,7 @@ function PlayerPortrait({
         )}
       </div>
       <p
-        className={`w-full truncate text-center text-sm font-bold uppercase tracking-wide ${
+        className={`w-full truncate text-center text-xs font-bold uppercase sm:text-sm ${
           player ? "text-foreground" : "italic text-jam-cyan/40"
         }`}
       >
@@ -96,8 +100,8 @@ export function MatchCard({
     showActions && actionFormAction && !completed && playerA && playerB;
 
   return (
-    <div className="scoreboard p-4">
-      <div className="flex items-center justify-center gap-3">
+    <div className="scoreboard p-3 sm:p-4">
+      <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-start justify-center gap-2 sm:gap-3">
         <PlayerPortrait
           player={playerA}
           avatar={aAvatar}
@@ -106,7 +110,7 @@ export function MatchCard({
           size={size}
         />
         <span
-          className={`arcade-sm shrink-0 text-xl ${
+          className={`arcade-sm mt-10 shrink-0 text-base sm:mt-14 sm:text-xl ${
             winnerId ? "text-jam-yellow" : "text-jam-cyan/60"
           }`}
         >
@@ -122,14 +126,14 @@ export function MatchCard({
       </div>
 
       {canReport && (
-        <div className="mt-4 grid grid-cols-2 gap-2">
+        <div className="match-action-grid mt-4">
           <form action={actionFormAction}>
             <input type="hidden" name="matchId" value={match.id} />
             <input type="hidden" name="winnerId" value={playerA!.id} />
             {eventId && (
               <input type="hidden" name="eventId" value={eventId} />
             )}
-            <button type="submit" className="jam-button w-full text-xs">
+            <button type="submit" className="jam-button w-full text-[11px] sm:text-xs">
               {playerA!.displayName.split(" ")[0]} WON
             </button>
           </form>
@@ -139,7 +143,7 @@ export function MatchCard({
             {eventId && (
               <input type="hidden" name="eventId" value={eventId} />
             )}
-            <button type="submit" className="jam-button w-full text-xs">
+            <button type="submit" className="jam-button w-full text-[11px] sm:text-xs">
               {playerB!.displayName.split(" ")[0]} WON
             </button>
           </form>

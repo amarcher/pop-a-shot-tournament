@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
   getLeagueById,
@@ -9,6 +8,7 @@ import { isBallerArchetype } from "@/lib/baller-types";
 import { BallerForm } from "./BallerForm";
 import { BallerGallery } from "./BallerGallery";
 import { PollWhileGenerating } from "./PollWhileGenerating";
+import { PageHeader } from "@/components/PageHeader";
 
 export default async function PlayerPage({
   params,
@@ -28,18 +28,16 @@ export default async function PlayerPage({
     player.avatarDefeatedUrl;
 
   return (
-    <main className="mx-auto w-full max-w-3xl px-6 py-10">
-      {league && (
-        <p className="arcade-sm text-xs">
-          <Link
-            href={`/leagues/${league.slug}`}
-            className="hover:text-jam-cyan"
-          >
-            ← {league.name}
-          </Link>
-        </p>
-      )}
-      <h1 className="arcade mt-3 text-5xl">{player.displayName}</h1>
+    <main className="court-shell">
+      <PageHeader
+        title={player.displayName}
+        back={
+          league
+            ? { href: `/leagues/${league.slug}`, label: league.name }
+            : undefined
+        }
+        subtitle="Baller portrait, selfie generation, and player identity."
+      />
 
       {generating && (
         <>

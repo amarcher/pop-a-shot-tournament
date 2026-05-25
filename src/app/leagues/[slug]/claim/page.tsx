@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getLeagueBySlug, listLeaguePlayers } from "@/db/queries";
 import { getCurrentLeaguePlayer } from "@/lib/auth";
@@ -7,6 +6,7 @@ import {
   claimLeaguePlayerAction,
   createLeaguePlayerAction,
 } from "@/app/events/actions";
+import { PageHeader } from "@/components/PageHeader";
 
 export default async function ClaimPage({
   params,
@@ -23,13 +23,12 @@ export default async function ClaimPage({
   ]);
 
   return (
-    <main className="mx-auto w-full max-w-3xl px-6 py-10">
-      <p className="arcade-sm text-xs">
-        <Link href={`/leagues/${league.slug}`} className="hover:text-jam-cyan">
-          ← {league.name}
-        </Link>
-      </p>
-      <h1 className="arcade mt-3 text-5xl">Pick your baller</h1>
+    <main className="court-shell">
+      <PageHeader
+        title="Pick your baller"
+        back={{ href: `/leagues/${league.slug}`, label: league.name }}
+        subtitle="Claim an existing identity or create a new one for this league."
+      />
 
       {me && (
         <p className="mt-4 text-foreground/90">
@@ -64,7 +63,9 @@ export default async function ClaimPage({
                           />
                         )}
                         <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/95 to-transparent p-3">
-                          <p className="arcade-sm text-xs">{p.displayName}</p>
+                          <p className="truncate text-sm font-black uppercase text-foreground">
+                            {p.displayName}
+                          </p>
                         </div>
                       </div>
                     </button>
@@ -80,7 +81,7 @@ export default async function ClaimPage({
         <h2 className="arcade-sm text-sm">Create a new baller</h2>
         <form
           action={createLeaguePlayerAction}
-          className="mt-4 flex flex-col gap-4 sm:flex-row sm:items-end"
+            className="mt-4 flex flex-col gap-4 md:flex-row md:items-end"
         >
           <input type="hidden" name="leagueSlug" value={league.slug} />
           <label className="flex-1">
@@ -95,7 +96,7 @@ export default async function ClaimPage({
               className="mt-1 w-full rounded-lg border-2 border-jam-blue bg-black/60 px-3 py-2 text-foreground placeholder:text-foreground/30 focus:border-jam-cyan focus:outline-none"
             />
           </label>
-          <button type="submit" className="jam-button text-xs">
+          <button type="submit" className="jam-button text-xs md:w-auto">
             Create baller →
           </button>
         </form>

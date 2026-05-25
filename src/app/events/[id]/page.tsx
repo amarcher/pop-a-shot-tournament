@@ -11,6 +11,8 @@ import {
   advanceSwissRoundAction,
   startEventAction,
 } from "@/app/events/actions";
+import { EventNav } from "@/components/EventNav";
+import { PageHeader } from "@/components/PageHeader";
 
 export default async function EventLandingPage({
   params,
@@ -44,55 +46,46 @@ export default async function EventLandingPage({
     event.format === "single_elim" || event.format === "double_elim";
 
   return (
-    <main className="mx-auto w-full max-w-4xl px-6 py-10">
-      {league && (
-        <p className="arcade-sm text-xs">
-          <Link
-            href={`/leagues/${league.slug}`}
-            className="hover:text-jam-yellow"
-          >
-            ← {league.name}
-          </Link>
-        </p>
-      )}
-      <div className="mt-2 flex items-end justify-between gap-4">
-        <div>
-          <h1 className="arcade on-fire text-4xl">{event.name}</h1>
-          <p className="mt-2 text-sm text-jam-cyan/85">
-            <span className="arcade-sm">{formatLabel}</span> · {event.status}
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {supportsBracket && (
-            <Link
-              href={`/events/${event.id}/bracket`}
-              className="rounded-full border border-jam-cyan px-4 py-2 text-sm font-bold text-foreground hover:border-jam-yellow"
-            >
-              Bracket
-            </Link>
-          )}
-          {!supportsBracket && (
-            <Link
-              href={`/events/${event.id}/standings`}
-              className="rounded-full border border-jam-cyan px-4 py-2 text-sm font-bold text-foreground hover:border-jam-yellow"
-            >
-              Standings
-            </Link>
-          )}
+    <main className="court-shell">
+      <PageHeader
+        title={event.name}
+        back={
+          league
+            ? { href: `/leagues/${league.slug}`, label: league.name }
+            : undefined
+        }
+        subtitle={
+          <>
+            <span className="arcade-sm page-kicker">{formatLabel}</span>
+            <span className="mx-2 text-jam-yellow/70">·</span>
+            <span className="font-bold uppercase text-foreground">
+              {event.status}
+            </span>
+          </>
+        }
+        actions={
+          <>
           <Link
             href={`/events/${event.id}/play`}
-            className="rounded-full jam-button text-xs"
+            className="jam-button text-xs"
           >
             Operator
           </Link>
           <Link
             href={`/events/${event.id}/broadcast`}
-            className="rounded-full border border-jam-cyan px-4 py-2 text-sm font-bold text-foreground hover:border-jam-yellow"
+            className="panel-link"
           >
             Broadcast (TV)
           </Link>
-        </div>
-      </div>
+          </>
+        }
+      >
+        <EventNav
+          eventId={event.id}
+          supportsBracket={supportsBracket}
+          active="overview"
+        />
+      </PageHeader>
 
       {event.status === "draft" && (
         <section className="mt-8 scoreboard p-6">
@@ -107,7 +100,7 @@ export default async function EventLandingPage({
             <input type="hidden" name="eventId" value={event.id} />
             <button
               type="submit"
-              className="rounded-full jam-button"
+              className="jam-button"
             >
               Start tournament →
             </button>
@@ -149,7 +142,7 @@ export default async function EventLandingPage({
             <input type="hidden" name="eventId" value={event.id} />
             <button
               type="submit"
-              className="rounded-full jam-button"
+              className="jam-button"
             >
               Pair next round →
             </button>
@@ -177,7 +170,9 @@ export default async function EventLandingPage({
 
       {event.status === "complete" && (
         <section className="mt-10 scoreboard p-6 text-center">
-          <p className="arcade on-fire text-2xl">Tournament complete</p>
+          <p className="arcade on-fire break-words text-sm sm:text-2xl">
+            Tournament complete
+          </p>
           <p className="mt-2 text-foreground/85">
             Final standings on the{" "}
             <Link

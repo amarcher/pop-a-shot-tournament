@@ -23,6 +23,7 @@
   --jam-orange: #ff7a00;
 
   --static: #2a2a2a;               /* TV-static gray panel */
+  --static-deep: #171717;
   --static-light: #4a4a4a;
   --bezel: #0a0a0a;                /* CRT bezel black */
 }
@@ -70,6 +71,11 @@ body {
       var(--background) 188px
     );
   min-height: 100vh;
+  overflow-x: hidden;
+}
+
+* {
+  min-width: 0;
 }
 
 /* ============================================================
@@ -80,7 +86,7 @@ body {
 .arcade {
   font-family: var(--font-display), "Courier New", monospace;
   font-weight: 900;
-  letter-spacing: 0.02em;
+  letter-spacing: 0;
   text-transform: uppercase;
   color: var(--jam-red);
   /* The cyan outline is a stack of 1px shadows around the fill — works
@@ -106,7 +112,7 @@ body {
 .arcade-sm {
   font-family: var(--font-display), "Courier New", monospace;
   font-weight: 900;
-  letter-spacing: 0.08em;
+  letter-spacing: 0;
   text-transform: uppercase;
   color: var(--jam-yellow);
   text-shadow:
@@ -121,7 +127,7 @@ body {
 .on-fire {
   font-family: var(--font-display), "Courier New", monospace;
   font-weight: 900;
-  letter-spacing: 0.02em;
+  letter-spacing: 0;
   text-transform: uppercase;
   background: linear-gradient(
     180deg,
@@ -143,7 +149,7 @@ body {
    the arcade cabinet's scoreboard display.
    ============================================================ */
 .scoreboard {
-  background-color: var(--static);
+  background-color: var(--static-deep);
   /* Faint horizontal scan-lines so it reads as a CRT panel. */
   background-image: repeating-linear-gradient(
     0deg,
@@ -152,7 +158,7 @@ body {
     transparent 1px,
     transparent 3px
   );
-  border: 4px solid var(--jam-blue);
+  border: 3px solid var(--jam-blue);
   box-shadow:
     inset 0 0 0 2px var(--jam-cyan),
     inset 0 0 24px rgba(0, 0, 0, 0.4),
@@ -160,6 +166,82 @@ body {
     0 12px 24px rgba(0, 0, 0, 0.45);
   border-radius: 6px;
   color: var(--foreground);
+}
+
+.court-shell {
+  width: min(100%, 72rem);
+  margin-inline: auto;
+  padding: 1.5rem;
+}
+
+.court-shell-wide {
+  width: min(100%, 90rem);
+  margin-inline: auto;
+  padding: 1.5rem;
+}
+
+.page-kicker {
+  color: var(--jam-yellow);
+}
+
+.nav-strip {
+  display: flex;
+  gap: 0.5rem;
+  overflow-x: auto;
+  padding: 0.5rem;
+  border: 3px solid var(--jam-blue);
+  border-radius: 9999px;
+  background: rgba(10, 10, 10, 0.6);
+  box-shadow:
+    inset 0 0 0 1px rgba(28, 200, 216, 0.55),
+    0 5px 0 var(--jam-blue-deep),
+    0 10px 18px rgba(0, 0, 0, 0.28);
+  scrollbar-width: none;
+}
+
+.nav-strip::-webkit-scrollbar {
+  display: none;
+}
+
+.nav-link {
+  display: inline-flex;
+  min-height: 2.5rem;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  padding: 0.55rem 0.9rem;
+  color: var(--foreground);
+  font-size: 0.8rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.nav-link:hover,
+.nav-link-active {
+  color: var(--bezel);
+  background: linear-gradient(180deg, var(--jam-yellow) 0%, var(--jam-orange) 100%);
+}
+
+.panel-link {
+  border: 2px solid rgba(28, 200, 216, 0.72);
+  border-radius: 9999px;
+  color: var(--foreground);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.5rem;
+  padding: 0.55rem 0.9rem;
+  font-size: 0.85rem;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.panel-link:hover {
+  border-color: var(--jam-yellow);
+  color: var(--jam-yellow);
 }
 
 /* The CRT bezel wraps a scoreboard with a black outer frame — use for the
@@ -184,6 +266,9 @@ body {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  gap: 0.35rem;
+  min-height: 2.75rem;
+  max-width: 100%;
   padding: 0.65rem 1.25rem;
   color: var(--bezel);
   background: linear-gradient(180deg, var(--jam-yellow) 0%, var(--jam-orange) 100%);
@@ -196,6 +281,10 @@ body {
     0 6px 12px rgba(0, 0, 0, 0.4);
   transition: transform 0.05s ease, box-shadow 0.05s ease;
   cursor: pointer;
+  text-align: center;
+  line-height: 1.05;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 .jam-button:hover {
   filter: brightness(1.08);
@@ -221,6 +310,9 @@ body {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  gap: 0.35rem;
+  min-height: 2.5rem;
+  max-width: 100%;
   padding: 0.55rem 1.1rem;
   color: var(--bezel);
   background: linear-gradient(180deg, #6df0fb 0%, var(--jam-cyan) 100%);
@@ -231,7 +323,70 @@ body {
     inset 0 2px 0 rgba(255, 255, 255, 0.6),
     0 4px 0 var(--jam-blue-deep);
   cursor: pointer;
+  text-align: center;
+  line-height: 1.05;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 .jam-button-secondary:hover {
   filter: brightness(1.08);
+}
+
+.action-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+.action-row > * {
+  flex: 1 1 10rem;
+}
+
+.match-action-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.6rem;
+}
+
+@media (min-width: 420px) {
+  .match-action-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .court-shell,
+  .court-shell-wide {
+    padding: 1rem;
+  }
+
+  .scoreboard {
+    border-width: 2px;
+    box-shadow:
+      inset 0 0 0 1px var(--jam-cyan),
+      inset 0 0 18px rgba(0, 0, 0, 0.36),
+      0 4px 0 var(--jam-blue-deep),
+      0 8px 16px rgba(0, 0, 0, 0.35);
+  }
+
+  .jam-button,
+  .jam-button-secondary,
+  .panel-link {
+    width: 100%;
+  }
+
+  .action-row > * {
+    flex-basis: 100%;
+  }
+
+  .nav-strip {
+    gap: 0.35rem;
+    padding: 0.4rem;
+  }
+
+  .nav-link {
+    min-height: 2.25rem;
+    padding: 0.45rem 0.65rem;
+    font-size: 0.68rem;
+  }
 }

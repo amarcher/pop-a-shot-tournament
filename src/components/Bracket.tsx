@@ -65,7 +65,7 @@ export function Bracket({
       {grand.length > 0 && (
         <section>
           <h3 className="arcade-sm text-sm">Grand final</h3>
-          <ul className="mt-3 grid grid-cols-2 gap-3">
+          <ul className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
             {grand
               .slice()
               .sort((a, b) => a.match.slotIndex - b.match.slotIndex)
@@ -116,8 +116,36 @@ function BracketSide({
   return (
     <section>
       <h3 className="arcade-sm text-sm">{title}</h3>
+      <div className="mt-3 space-y-4 md:hidden">
+        {sideRounds.map((round) => {
+          const cells = matches
+            .filter((m) => m.match.roundId === round.id)
+            .sort((a, b) => a.match.slotIndex - b.match.slotIndex);
+          return (
+            <section key={round.id} className="space-y-2">
+              <h4 className="text-xs font-black uppercase text-jam-yellow">
+                Round {round.roundNumber}
+              </h4>
+              <div className="grid gap-3">
+                {cells.map(({ match, playerA, playerB }) => (
+                  <MatchCard
+                    key={match.id}
+                    match={match}
+                    playerA={playerA}
+                    playerB={playerB}
+                    showActions={!!reportAction}
+                    actionFormAction={reportAction}
+                    eventId={eventId}
+                    size="sm"
+                  />
+                ))}
+              </div>
+            </section>
+          );
+        })}
+      </div>
       <div
-        className="mt-3 grid gap-8 overflow-x-auto pb-4"
+        className="mt-3 hidden gap-8 overflow-x-auto pb-4 md:grid"
         style={{
           gridTemplateColumns: `repeat(${sideRounds.length}, minmax(360px, 1fr))`,
         }}

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getLeagueBySlug, listLeaguePlayers } from "@/db/queries";
 import { createEventAction } from "@/app/events/actions";
+import { PageHeader } from "@/components/PageHeader";
 
 const FORMATS = [
   {
@@ -38,13 +39,12 @@ export default async function NewEventPage({
   const roster = await listLeaguePlayers(league.id);
 
   return (
-    <main className="mx-auto w-full max-w-3xl px-6 py-10">
-      <p className="arcade-sm text-xs">
-        <Link href={`/leagues/${league.slug}`} className="hover:text-jam-yellow">
-          ← {league.name}
-        </Link>
-      </p>
-      <h1 className="arcade on-fire mt-2 text-4xl">New tournament</h1>
+    <main className="court-shell">
+      <PageHeader
+        title="New tournament"
+        back={{ href: `/leagues/${league.slug}`, label: league.name }}
+        subtitle="Choose a format, seed the room, and start when the roster is locked."
+      />
 
       <form action={createEventAction} className="mt-8 space-y-8">
         <input type="hidden" name="leagueId" value={league.id} />
@@ -79,7 +79,7 @@ export default async function NewEventPage({
                   <span className="block font-bold uppercase tracking-wider text-foreground">
                     {f.label}
                   </span>
-                  <span className="mt-1 block text-xs text-jam-cyan/85">
+                  <span className="mt-1 block text-xs leading-5 text-foreground/72">
                     {f.blurb}
                   </span>
                 </label>
@@ -139,7 +139,7 @@ export default async function NewEventPage({
 
         <button
           type="submit"
-          className="rounded-full jam-button"
+          className="jam-button"
         >
           Create tournament →
         </button>
