@@ -10,12 +10,17 @@ export function HeadToHead({
   match,
   playerA,
   playerB,
+  reportAction,
+  eventId,
 }: {
   match: Match;
   playerA: Player | null;
   playerB: Player | null;
+  reportAction?: (formData: FormData) => void | Promise<void>;
+  eventId?: string;
 }) {
   const completed = match.status === "complete";
+  const canReport = !completed && !!reportAction && !!playerA && !!playerB;
   const aIsWinner = match.winnerId !== null && match.winnerId === playerA?.id;
   const bIsWinner = match.winnerId !== null && match.winnerId === playerB?.id;
   const aAvatar = playerA
@@ -67,6 +72,37 @@ export function HeadToHead({
         <p className="mt-4 text-center arcade on-fire text-4xl sm:text-6xl animate-pulse">
           ON FIRE!
         </p>
+      )}
+
+      {canReport && (
+        <div className="mt-6 grid grid-cols-2 gap-4 sm:gap-8">
+          <form action={reportAction}>
+            <input type="hidden" name="matchId" value={match.id} />
+            <input type="hidden" name="winnerId" value={playerA!.id} />
+            {eventId && (
+              <input type="hidden" name="eventId" value={eventId} />
+            )}
+            <button
+              type="submit"
+              className="jam-button w-full text-sm sm:text-lg"
+            >
+              {playerA!.displayName.split(" ")[0]} won
+            </button>
+          </form>
+          <form action={reportAction}>
+            <input type="hidden" name="matchId" value={match.id} />
+            <input type="hidden" name="winnerId" value={playerB!.id} />
+            {eventId && (
+              <input type="hidden" name="eventId" value={eventId} />
+            )}
+            <button
+              type="submit"
+              className="jam-button w-full text-sm sm:text-lg"
+            >
+              {playerB!.displayName.split(" ")[0]} won
+            </button>
+          </form>
+        </div>
       )}
     </div>
   );
