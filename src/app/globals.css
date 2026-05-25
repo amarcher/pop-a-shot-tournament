@@ -211,11 +211,12 @@ body {
   justify-content: center;
   border-radius: 9999px;
   padding: 0.55rem 0.9rem;
-  color: var(--foreground);
+  color: #fff2c2;
   font-size: 0.8rem;
   font-weight: 900;
   text-transform: uppercase;
   text-decoration: none;
+  text-shadow: none;
   white-space: nowrap;
 }
 
@@ -330,6 +331,48 @@ body {
 }
 .jam-button-secondary:hover {
   filter: brightness(1.08);
+}
+
+.broadcast-title {
+  font-family: var(--font-display), "Courier New", monospace;
+  font-weight: 900;
+  letter-spacing: 0;
+  text-transform: uppercase;
+  color: var(--jam-yellow);
+  text-shadow:
+    -1px -1px 0 var(--jam-blue),
+    1px -1px 0 var(--jam-blue),
+    -1px 1px 0 var(--jam-blue),
+    1px 1px 0 var(--jam-blue),
+    2px 3px 0 var(--jam-blue-deep),
+    4px 6px 10px rgba(0, 0, 0, 0.42);
+}
+
+.broadcast-card {
+  background:
+    linear-gradient(180deg, rgba(177, 75, 30, 0.92), rgba(10, 10, 10, 0.96)),
+    repeating-linear-gradient(
+      0deg,
+      rgba(255, 255, 255, 0.035) 0px,
+      rgba(255, 255, 255, 0.035) 1px,
+      transparent 1px,
+      transparent 4px
+    );
+  border: 3px solid var(--jam-blue);
+  border-radius: 6px;
+  box-shadow:
+    inset 0 0 0 2px rgba(28, 200, 216, 0.85),
+    0 6px 0 var(--jam-blue-deep),
+    0 12px 22px rgba(0, 0, 0, 0.34);
+  color: var(--foreground);
+}
+
+.broadcast-card-champ {
+  border-color: var(--jam-yellow);
+  box-shadow:
+    inset 0 0 0 2px rgba(255, 122, 0, 0.48),
+    0 6px 0 var(--jam-blue-deep),
+    0 12px 22px rgba(0, 0, 0, 0.34);
 }
 
 .action-row {

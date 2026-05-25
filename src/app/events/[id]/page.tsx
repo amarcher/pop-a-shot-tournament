@@ -73,7 +73,7 @@ export default async function EventLandingPage({
           </Link>
           <Link
             href={`/events/${event.id}/broadcast`}
-            className="panel-link"
+            className="jam-button-secondary text-xs"
           >
             Broadcast (TV)
           </Link>
