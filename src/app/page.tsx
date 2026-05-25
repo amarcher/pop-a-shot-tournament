@@ -1,7 +1,9 @@
 import { redirect } from "next/navigation";
+import { connection } from "next/server";
 import { listLeagues } from "@/db/queries";
 
 export default async function HomePage() {
+  await connection();
   const leagues = await listLeagues();
   if (leagues[0]) {
     redirect(`/leagues/${leagues[0].slug}`);

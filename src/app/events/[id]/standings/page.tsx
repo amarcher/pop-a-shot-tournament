@@ -1,11 +1,13 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
   getEvent,
+  getLeagueById,
   getRoster,
   listCompletedMatches,
 } from "@/db/queries";
 import { buildRecords, rankRoundRobin, rankSwiss } from "@/lib/standings";
+import { EventNav } from "@/components/EventNav";
+import { PageHeader } from "@/components/PageHeader";
 import { StandingsTable } from "@/components/StandingsTable";
 
 export default async function StandingsPage({
@@ -17,7 +19,8 @@ export default async function StandingsPage({
   const event = await getEvent(id);
   if (!event) notFound();
 
-  const [roster, matches] = await Promise.all([
+  const [league, roster, matches] = await Promise.all([
+    getLeagueById(event.leagueId),
     getRoster(event.id),
     listCompletedMatches(event.id),
   ]);
@@ -49,17 +52,32 @@ export default async function StandingsPage({
   });
 
   return (
-    <main className="mx-auto w-full max-w-3xl px-6 py-10">
-      <p className="arcade-sm text-xs">
-        <Link href={`/events/${event.id}`} className="hover:text-jam-yellow">
-          ← {event.name}
-        </Link>
-      </p>
-      <h1 className="arcade on-fire mt-2 text-4xl">Standings</h1>
-      <p className="mt-2 text-sm text-jam-cyan/85">
-        {event.format.replace("_", " ")} ·{" "}
-        {isSwiss ? "match points + OMW%" : "wins · losses · seed"}
-      </p>
+    <main className="court-shell">
+      <PageHeader
+        title="Standings"
+        back={{ href: `/events/${event.id}`, label: event.name }}
+        subtitle={
+          <>
+            <span>{event.format.replace("_", " ")}</span>
+            <span className="mx-2 text-jam-yellow/70">·</span>
+            <span>
+              {isSwiss ? "match points + OMW%" : "wins · losses · seed"}
+            </span>
+            {league && (
+              <>
+                <span className="mx-2 text-jam-yellow/70">·</span>
+                <span className="font-bold text-jam-yellow">{league.name}</span>
+              </>
+            )}
+          </>
+        }
+      >
+        <EventNav
+          eventId={event.id}
+          supportsBracket={false}
+          active="standings"
+        />
+      </PageHeader>
 
       <div className="mt-8">
         <StandingsTable rows={rows} />

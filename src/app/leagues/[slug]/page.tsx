@@ -7,6 +7,7 @@ import {
 } from "@/db/queries";
 import { getCurrentLeaguePlayer } from "@/lib/auth";
 import { pickPlayerAvatar } from "@/lib/avatar";
+import { PageHeader } from "@/components/PageHeader";
 
 export default async function LeagueHomePage({
   params,
@@ -24,13 +25,12 @@ export default async function LeagueHomePage({
   ]);
 
   return (
-    <main className="mx-auto w-full max-w-5xl px-6 py-10">
-      <header className="flex flex-col items-start gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <p className="arcade-sm text-xs">League</p>
-          <h1 className="arcade mt-2 text-5xl">{league.name}</h1>
-        </div>
-        <div className="flex flex-wrap gap-3">
+    <main className="court-shell">
+      <PageHeader
+        eyebrow="League"
+        title={league.name}
+        actions={
+          <>
           <Link
             href={`/leagues/${league.slug}/claim`}
             className="jam-button-secondary text-xs"
@@ -43,8 +43,9 @@ export default async function LeagueHomePage({
           >
             New tournament
           </Link>
-        </div>
-      </header>
+          </>
+        }
+      />
 
       {me && (
         <p className="mt-4 text-sm text-foreground/90">
@@ -86,7 +87,9 @@ export default async function LeagueHomePage({
                         />
                       )}
                       <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/95 to-transparent p-3">
-                        <p className="arcade-sm text-xs">{p.displayName}</p>
+                        <p className="truncate text-sm font-black uppercase text-foreground">
+                          {p.displayName}
+                        </p>
                       </div>
                     </div>
                   </Link>
@@ -116,7 +119,7 @@ export default async function LeagueHomePage({
               <li key={e.id}>
                 <Link
                   href={`/events/${e.id}`}
-                  className="scoreboard flex items-center justify-between px-5 py-4 transition hover:brightness-110"
+                  className="scoreboard flex items-center justify-between gap-4 px-5 py-4 transition hover:brightness-110"
                 >
                   <div>
                     <p className="font-bold text-foreground">{e.name}</p>
