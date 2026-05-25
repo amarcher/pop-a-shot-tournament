@@ -55,14 +55,16 @@ export default async function BroadcastPage({
     <main className="mx-auto w-full max-w-7xl px-8 py-10">
       <BroadcastSubscriber eventId={event.id} />
 
-      <header className="flex items-end justify-between">
+      <header className="flex items-end justify-between gap-6">
         <div>
           <p className="arcade-sm text-sm">{event.name}</p>
-          <h1 className="arcade on-fire text-5xl">{event.format.replace("_", " ")}</h1>
+          <h1 className="broadcast-title mt-2 text-5xl leading-none">
+            {event.format.replace("_", " ")}
+          </h1>
         </div>
         <Link
           href={`/events/${event.id}`}
-          className="text-xs text-jam-cyan/70 hover:text-jam-yellow"
+          className="text-sm font-bold text-foreground/75 hover:text-jam-yellow"
         >
           back to event
         </Link>
@@ -70,7 +72,9 @@ export default async function BroadcastPage({
 
       {event.status === "complete" && finalRanking.length > 0 ? (
         <section className="mt-12">
-          <p className="arcade on-fire text-center text-3xl">FINAL STANDINGS</p>
+          <p className="broadcast-title text-center text-3xl">
+            FINAL STANDINGS
+          </p>
           <ul className="mt-8 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
             {finalRanking.map((r, idx) => {
               const isFirst = idx === 0;
@@ -84,10 +88,8 @@ export default async function BroadcastPage({
               return (
                 <li
                   key={r.playerId}
-                  className={`overflow-hidden rounded-2xl border ${
-                    isFirst
-                      ? "border-jam-yellow bg-jam-red/20"
-                      : "scoreboard"
+                  className={`broadcast-card overflow-hidden ${
+                    isFirst ? "broadcast-card-champ" : ""
                   }`}
                 >
                   <div className="relative aspect-square w-full bg-gradient-to-br from-orange-900/40 to-amber-950/40">
@@ -99,12 +101,8 @@ export default async function BroadcastPage({
                         className="absolute inset-0 h-full w-full object-cover"
                       />
                     )}
-                    <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/95 to-transparent p-3">
-                      <p
-                        className={`arcade-sm text-sm ${
-                          isFirst ? "on-fire" : "text-foreground"
-                        }`}
-                      >
+                    <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/95 via-black/70 to-transparent p-3">
+                      <p className="broadcast-title text-sm leading-tight">
                         #{idx + 1} {r.player.displayName}
                       </p>
                     </div>
@@ -130,4 +128,3 @@ export default async function BroadcastPage({
     </main>
   );
 }
-
