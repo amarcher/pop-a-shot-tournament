@@ -6,6 +6,7 @@ import {
   hydrateMatches,
 } from "@/db/queries";
 import { pickPlayerAvatar } from "@/lib/avatar";
+import { reportMatchWinnerAction } from "@/app/events/actions";
 import { HeadToHead } from "@/components/HeadToHead";
 import { BroadcastSubscriber } from "./BroadcastSubscriber";
 
@@ -118,6 +119,10 @@ export default async function BroadcastPage({
             match={headline.match}
             playerA={headline.playerA}
             playerB={headline.playerB}
+            reportAction={
+              headline === inProgress ? reportMatchWinnerAction : undefined
+            }
+            eventId={event.id}
           />
         </section>
       ) : (
