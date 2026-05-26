@@ -45,6 +45,13 @@ function firstName(displayName: string): string {
 const LINE = "#1cc8d8"; // jam-cyan, full opacity — NBA-Jam neon
 const LINE_PX = 4;
 const LINE_GLOW = "0 0 6px rgba(28, 200, 216, 0.55)";
+// Each grid row is exactly ROW_PX tall. Avatars cap at AVATAR_MAX so they
+// fit within the row pair (matchSpan rows × ROW_PX) with breathing room.
+// Fixed row heights mean hidden R1 bye matches still reserve their rows,
+// which (a) keeps next-round connectors landing precisely on the right
+// avatar and (b) creates a natural gap between paired R1 matches.
+const ROW_PX = 110;
+const AVATAR_MAX = 100;
 
 export function Bracket({
   matches,
@@ -228,7 +235,7 @@ function BracketSide({
         className="mt-3 hidden pb-4 md:grid"
         style={{
           gridTemplateColumns: trackSpec,
-          gridTemplateRows: `repeat(${bracketRows}, minmax(0, auto))`,
+          gridTemplateRows: `repeat(${bracketRows}, ${ROW_PX}px)`,
           columnGap: 0,
         }}
       >
@@ -480,10 +487,10 @@ function PlayerSlot({
 
   const portrait = (
     <div
-      className={`relative aspect-square w-full overflow-hidden border-[3px] border-solid bg-[#1a0e07] ${
+      className={`relative mx-auto aspect-square w-full overflow-hidden border-[3px] border-solid bg-[#1a0e07] ${
         isLoser ? "grayscale-[65%]" : ""
       }`}
-      style={bevelStyle}
+      style={{ ...bevelStyle, maxWidth: `${AVATAR_MAX}px` }}
     >
       {avatar ? (
         // eslint-disable-next-line @next/next/no-img-element
