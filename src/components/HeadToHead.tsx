@@ -106,14 +106,14 @@ export function HeadToHead({
             aIsWinner ? "on-fire" : ""
           } ${playerA ? "" : "italic text-jam-cyan/50"}`}
         >
-          {playerA?.displayName.split(" ").slice(-1)[0].toUpperCase() ?? "TBD"}
+          {playerA?.displayName.split(/\s+/)[0].toUpperCase() ?? "TBD"}
         </p>
         <p
           className={`arcade text-2xl sm:text-3xl ${
             bIsWinner ? "on-fire" : ""
           } ${playerB ? "" : "italic text-jam-cyan/50"}`}
         >
-          {playerB?.displayName.split(" ").slice(-1)[0].toUpperCase() ?? "TBD"}
+          {playerB?.displayName.split(/\s+/)[0].toUpperCase() ?? "TBD"}
         </p>
       </div>
 

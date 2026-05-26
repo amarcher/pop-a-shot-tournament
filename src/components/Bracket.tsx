@@ -45,13 +45,6 @@ function firstName(displayName: string): string {
 const LINE = "#1cc8d8"; // jam-cyan, full opacity — NBA-Jam neon
 const LINE_PX = 4;
 const LINE_GLOW = "0 0 6px rgba(28, 200, 216, 0.55)";
-// Each grid row is exactly ROW_PX tall. Avatars cap at AVATAR_MAX so they
-// fit within the row pair (matchSpan rows × ROW_PX) with breathing room.
-// Fixed row heights mean hidden R1 bye matches still reserve their rows,
-// which (a) keeps next-round connectors landing precisely on the right
-// avatar and (b) creates a natural gap between paired R1 matches.
-const ROW_PX = 110;
-const AVATAR_MAX = 100;
 
 export function Bracket({
   matches,
@@ -235,7 +228,14 @@ function BracketSide({
         className="mt-3 hidden pb-4 md:grid"
         style={{
           gridTemplateColumns: trackSpec,
-          gridTemplateRows: `repeat(${bracketRows}, ${ROW_PX}px)`,
+          gridTemplateRows: `repeat(${bracketRows}, minmax(0, 1fr))`,
+          // Lock the grid's aspect ratio so each row's pixel height equals
+          // an avatar column's pixel width. With avatars at `aspect-square
+          // w-full`, that makes the bracket lines meet the avatar edges flush
+          // (no horizontal padding gap) and lets the whole bracket scale to
+          // the viewport's width. Avatar columns are 1fr, gap columns 2fr,
+          // so the total fr count is 3N - 2 for N rounds.
+          aspectRatio: `${3 * numRounds - 2} / ${bracketRows}`,
           columnGap: 0,
         }}
       >
@@ -274,8 +274,6 @@ function BracketSide({
                     gridColumn={outgoingColumn}
                     rowStart={rowStart}
                     rowSpan={matchSpan}
-                    hasTop={!!cell.playerA}
-                    hasBottom={!!cell.playerB}
                   />
                 )}
               </Fragment>
@@ -358,10 +356,10 @@ function BracketMatch({
         gridRow: `${rowStart} / span ${rowSpan}`,
       }}
     >
-      <div className="flex flex-1 items-center justify-center px-1">
+      <div className="flex flex-1 items-center justify-center">
         {renderSlot(playerA, aWon, completed && !aWon, parentForA)}
       </div>
-      <div className="flex flex-1 items-center justify-center px-1">
+      <div className="flex flex-1 items-center justify-center">
         {renderSlot(playerB, bWon, completed && !bWon, parentForB)}
       </div>
     </div>
@@ -487,10 +485,10 @@ function PlayerSlot({
 
   const portrait = (
     <div
-      className={`relative mx-auto aspect-square w-full overflow-hidden border-[3px] border-solid bg-[#1a0e07] ${
+      className={`relative aspect-square w-full overflow-hidden border-[3px] border-solid bg-[#1a0e07] ${
         isLoser ? "grayscale-[65%]" : ""
       }`}
-      style={{ ...bevelStyle, maxWidth: `${AVATAR_MAX}px` }}
+      style={bevelStyle}
     >
       {avatar ? (
         // eslint-disable-next-line @next/next/no-img-element
@@ -549,26 +547,22 @@ function PlayerSlot({
 }
 
 /** Outgoing connector from a single match. Rendered in the gap column to the
- *  match's right, spanning the same row range. The two horizontals exit from
- *  each avatar's vertical center (25% / 75% of the cell), drop to a vertical
- *  at the gap's midpoint, then a single horizontal continues right to the
- *  next round's avatar. */
+ *  match's right, spanning the same row range. The two horizontals exit at
+ *  the source's slot-A and slot-B vertical positions (25% / 75% of the cell),
+ *  drop to a vertical at the gap's midpoint, then a single horizontal
+ *  continues right to the next round's avatar.
+ *
+ *  Both branches always draw — even a TBD slot needs its structural line so
+ *  the operator can see where the eventual winner will go. */
 function OutgoingConnector({
   gridColumn,
   rowStart,
   rowSpan,
-  hasTop,
-  hasBottom,
 }: {
   gridColumn: number;
   rowStart: number;
   rowSpan: number;
-  hasTop: boolean;
-  hasBottom: boolean;
 }) {
-  if (!hasTop && !hasBottom) return null;
-  const verticalTop = hasTop ? "25%" : "50%";
-  const verticalBot = hasBottom ? "75%" : "50%";
   const half = LINE_PX / 2;
 
   return (
@@ -579,48 +573,42 @@ function OutgoingConnector({
         gridRow: `${rowStart} / span ${rowSpan}`,
       }}
     >
-      {hasTop && (
-        <span
-          aria-hidden
-          style={{
-            position: "absolute",
-            left: 0,
-            top: `calc(25% - ${half}px)`,
-            width: "50%",
-            height: LINE_PX,
-            background: LINE,
-            boxShadow: LINE_GLOW,
-          }}
-        />
-      )}
-      {hasBottom && (
-        <span
-          aria-hidden
-          style={{
-            position: "absolute",
-            left: 0,
-            top: `calc(75% - ${half}px)`,
-            width: "50%",
-            height: LINE_PX,
-            background: LINE,
-            boxShadow: LINE_GLOW,
-          }}
-        />
-      )}
-      {verticalTop !== verticalBot && (
-        <span
-          aria-hidden
-          style={{
-            position: "absolute",
-            left: `calc(50% - ${half}px)`,
-            top: verticalTop,
-            height: `calc(${verticalBot} - ${verticalTop})`,
-            width: LINE_PX,
-            background: LINE,
-            boxShadow: LINE_GLOW,
-          }}
-        />
-      )}
+      <span
+        aria-hidden
+        style={{
+          position: "absolute",
+          left: 0,
+          top: `calc(25% - ${half}px)`,
+          width: "50%",
+          height: LINE_PX,
+          background: LINE,
+          boxShadow: LINE_GLOW,
+        }}
+      />
+      <span
+        aria-hidden
+        style={{
+          position: "absolute",
+          left: 0,
+          top: `calc(75% - ${half}px)`,
+          width: "50%",
+          height: LINE_PX,
+          background: LINE,
+          boxShadow: LINE_GLOW,
+        }}
+      />
+      <span
+        aria-hidden
+        style={{
+          position: "absolute",
+          left: `calc(50% - ${half}px)`,
+          top: "25%",
+          height: "50%",
+          width: LINE_PX,
+          background: LINE,
+          boxShadow: LINE_GLOW,
+        }}
+      />
       <span
         aria-hidden
         style={{
