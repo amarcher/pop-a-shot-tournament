@@ -67,7 +67,7 @@ export default async function NewEventPage({
           <ul className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
             {FORMATS.map((f, idx) => (
               <li key={f.id}>
-                <label className="block cursor-pointer scoreboard px-4 py-3 hover:border-jam-cyan has-[:checked]:border-jam-yellow has-[:checked]:bg-jam-red/20">
+                <label className="block cursor-pointer scoreboard px-4 py-3 transition">
                   <input
                     type="radio"
                     name="format"
@@ -88,17 +88,15 @@ export default async function NewEventPage({
           </ul>
         </fieldset>
 
-        <label className="block">
-          <span className="arcade-sm text-sm">
-            Swiss rounds (ignored for other formats)
-          </span>
+        <label className="swiss-only">
+          <span className="arcade-sm text-sm">Swiss rounds</span>
           <input
             type="number"
             name="totalRounds"
             min={1}
             max={9}
             placeholder="auto: ceil(log₂ players)"
-            className="mt-2 w-40 scoreboard px-3 py-2 text-foreground placeholder:text-foreground/30 focus:border-jam-yellow focus:outline-none"
+            className="mt-2 w-72 scoreboard px-3 py-2 text-foreground placeholder:text-foreground/30 focus:border-jam-yellow focus:outline-none"
           />
         </label>
 
@@ -121,7 +119,7 @@ export default async function NewEventPage({
             <ul className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
               {roster.map((p) => (
                 <li key={p.id}>
-                  <label className="flex cursor-pointer items-center gap-3 scoreboard px-3 py-2 text-foreground hover:border-jam-cyan has-[:checked]:border-jam-yellow has-[:checked]:bg-jam-red/20">
+                  <label className="flex cursor-pointer items-center gap-3 scoreboard px-3 py-2 text-foreground transition">
                     <input
                       type="checkbox"
                       name="playerId"

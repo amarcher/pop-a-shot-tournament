@@ -116,6 +116,7 @@ export default async function BroadcastPage({
       ) : headline ? (
         <section className="mt-16">
           <HeadToHead
+            key={headline.match.id}
             match={headline.match}
             playerA={headline.playerA}
             playerB={headline.playerB}
