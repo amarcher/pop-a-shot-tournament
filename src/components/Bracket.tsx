@@ -8,9 +8,8 @@ interface HydratedMatch {
   playerB: Player | null;
 }
 
-// R1 bye: a completed R1 match where exactly one of the two players is null.
-// Materialize auto-advances the present player to R2, so the R2 match already
-// shows the bye-er as the opponent. We hide the R1 bye entry itself.
+type FormAction = (formData: FormData) => void | Promise<void>;
+
 function isByeMatch(m: HydratedMatch): boolean {
   return (
     m.match.status === "complete" &&
@@ -18,21 +17,50 @@ function isByeMatch(m: HydratedMatch): boolean {
   );
 }
 
-const CONNECTOR_COLOR = "rgba(109, 240, 251, 0.85)";
-const CONNECTOR_PAD = 36;
-const CONNECTOR_HALF = CONNECTOR_PAD / 2;
+// Undo is safe only when nothing downstream has already locked in. Once a
+// child match is complete, the user has to undo that one first.
+function canUndoFn(
+  matchById: Map<string, HydratedMatch>
+): (cell: HydratedMatch) => boolean {
+  return (cell) => {
+    if (cell.match.status !== "complete" || !cell.match.winnerId) return false;
+    if (cell.match.nextMatchWinId) {
+      const next = matchById.get(cell.match.nextMatchWinId);
+      const isResetSlot =
+        next?.match.bracketSide === "grand_final" &&
+        next?.match.slotIndex === 1;
+      if (next?.match.status === "complete" && !isResetSlot) return false;
+    }
+    if (cell.match.nextMatchLoseId) {
+      const nextL = matchById.get(cell.match.nextMatchLoseId);
+      if (nextL?.match.status === "complete") return false;
+    }
+    return true;
+  };
+}
+
+function firstName(displayName: string): string {
+  return displayName.trim().split(/\s+/)[0]?.toUpperCase() ?? "";
+}
+
+const COL_WIDTH = 110;
+const COL_GAP = 28;
+const HALF_GAP = COL_GAP / 2;
+const LINE = "rgba(109, 240, 251, 0.85)";
 
 export function Bracket({
   matches,
   rounds,
   format,
   reportAction,
+  clearAction,
   eventId,
 }: {
   matches: HydratedMatch[];
   rounds: Round[];
   format: "single_elim" | "double_elim";
-  reportAction?: (formData: FormData) => void | Promise<void>;
+  reportAction?: FormAction;
+  clearAction?: FormAction;
   eventId: string;
 }) {
   if (format === "single_elim") {
@@ -43,6 +71,7 @@ export function Bracket({
         matches={matches}
         rounds={rounds}
         reportAction={reportAction}
+        clearAction={clearAction}
         eventId={eventId}
       />
     );
@@ -60,6 +89,7 @@ export function Bracket({
         matches={matches}
         rounds={rounds}
         reportAction={reportAction}
+        clearAction={clearAction}
         eventId={eventId}
       />
       <BracketSide
@@ -68,6 +98,7 @@ export function Bracket({
         matches={matches}
         rounds={rounds}
         reportAction={reportAction}
+        clearAction={clearAction}
         eventId={eventId}
         skipConnectors
       />
@@ -108,6 +139,7 @@ function BracketSide({
   matches,
   rounds,
   reportAction,
+  clearAction,
   eventId,
   skipConnectors = false,
 }: {
@@ -115,7 +147,8 @@ function BracketSide({
   side: "winners" | "losers" | "none";
   matches: HydratedMatch[];
   rounds: Round[];
-  reportAction?: (formData: FormData) => void | Promise<void>;
+  reportAction?: FormAction;
+  clearAction?: FormAction;
   eventId: string;
   skipConnectors?: boolean;
 }) {
@@ -129,14 +162,14 @@ function BracketSide({
       .filter((m) => m.match.roundId === r.id)
       .sort((a, b) => a.match.slotIndex - b.match.slotIndex)
   );
-  // 2 player slots per R1 match → the bracket's row count.
   const bracketRows = (matchesByRound[0]?.length ?? 0) * 2;
+  const canUndo = canUndoFn(new Map(matches.map((m) => [m.match.id, m])));
 
   return (
     <section>
       <h3 className="arcade-sm text-sm">{title}</h3>
 
-      {/* Mobile: stack rounds linearly. Tree shape doesn't fit small screens. */}
+      {/* Mobile: linear stack — tree shape doesn't fit. */}
       <div className="mt-3 space-y-6 md:hidden">
         {sideRounds.map((round, roundIdx) => {
           const cells = matchesByRound[roundIdx].filter(
@@ -167,15 +200,17 @@ function BracketSide({
         })}
       </div>
 
-      {/* Desktop tree: each match is a 2-row tall flex column with one player
-          stacked above the other. Round-N matches span 2·2^(N-1) rows so the
-          two players sit at 25% / 75% of the cell — i.e., centered on the two
-          parent matches in round N-1. */}
+      {/* Desktop tree. Fixed-width columns + column-gap so connector lines
+          drawn in the gap visually originate at the parent box's right edge
+          and terminate at the child box's left edge. Each round-N match
+          spans 2·2^(N-1) leaf rows, sitting vertically centered between its
+          two parents. */}
       <div
-        className="mt-3 hidden md:grid overflow-x-auto pb-4"
+        className="mt-3 hidden overflow-x-auto pb-4 md:grid"
         style={{
-          gridTemplateColumns: `repeat(${sideRounds.length}, minmax(220px, 1fr))`,
-          gridTemplateRows: `repeat(${bracketRows}, minmax(64px, auto))`,
+          gridTemplateColumns: `repeat(${sideRounds.length}, ${COL_WIDTH}px)`,
+          gridTemplateRows: `repeat(${bracketRows}, minmax(60px, auto))`,
+          columnGap: `${COL_GAP}px`,
         }}
       >
         {sideRounds.map((round, roundIdx) => {
@@ -197,12 +232,13 @@ function BracketSide({
                 gridColumn={roundIdx + 1}
                 rowStart={rowStart}
                 rowSpan={matchSpan}
-                roundIdx={roundIdx}
+                drawIncomingConnector={roundIdx > 0 && !skipConnectors}
                 aboveBye={aboveBye}
                 belowBye={belowBye}
+                canUndo={canUndo(cell)}
                 reportAction={reportAction}
+                clearAction={clearAction}
                 eventId={eventId}
-                skipConnectors={skipConnectors}
               />
             );
           });
@@ -217,70 +253,71 @@ function BracketMatch({
   gridColumn,
   rowStart,
   rowSpan,
-  roundIdx,
+  drawIncomingConnector,
   aboveBye,
   belowBye,
+  canUndo,
   reportAction,
+  clearAction,
   eventId,
-  skipConnectors,
 }: {
   cell: HydratedMatch;
   gridColumn: number;
   rowStart: number;
   rowSpan: number;
-  roundIdx: number;
+  drawIncomingConnector: boolean;
   aboveBye: boolean;
   belowBye: boolean;
-  reportAction?: (formData: FormData) => void | Promise<void>;
+  canUndo: boolean;
+  reportAction?: FormAction;
+  clearAction?: FormAction;
   eventId: string;
-  skipConnectors: boolean;
 }) {
   const { match, playerA, playerB } = cell;
   const completed = match.status === "complete";
   const winnerId = match.winnerId;
   const aWon = !!winnerId && winnerId === playerA?.id;
   const bWon = !!winnerId && winnerId === playerB?.id;
-  const canReport = !completed && !!reportAction && !!playerA && !!playerB;
+  const canPick = !completed && !!reportAction && !!playerA && !!playerB;
 
   return (
     <div
-      className="relative flex flex-col"
+      className="relative flex items-center"
       style={{
         gridColumn,
         gridRow: `${rowStart} / span ${rowSpan}`,
-        paddingLeft: roundIdx === 0 ? 0 : `${CONNECTOR_PAD}px`,
       }}
     >
-      {roundIdx > 0 && !skipConnectors && (
+      {drawIncomingConnector && (
         <BracketConnector aboveBye={aboveBye} belowBye={belowBye} />
       )}
-      <div className="flex flex-1 flex-col gap-1.5 py-1">
-        <div className="flex flex-1 items-center">
-          <PlayerSlot
-            player={playerA}
-            isWinner={aWon}
-            isLoser={completed && !aWon}
-            matchComplete={completed}
-            winnerId={winnerId}
-            matchId={match.id}
-            eventId={eventId}
-            canReport={canReport}
-            reportAction={reportAction}
-          />
-        </div>
-        <div className="flex flex-1 items-center">
-          <PlayerSlot
-            player={playerB}
-            isWinner={bWon}
-            isLoser={completed && !bWon}
-            matchComplete={completed}
-            winnerId={winnerId}
-            matchId={match.id}
-            eventId={eventId}
-            canReport={canReport}
-            reportAction={reportAction}
-          />
-        </div>
+      <div className="flex w-full flex-col gap-1 rounded-md border-2 border-jam-cyan/60 bg-bezel/40 p-1">
+        <PlayerSlot
+          player={playerA}
+          isWinner={aWon}
+          isLoser={completed && !aWon}
+          matchComplete={completed}
+          winnerId={winnerId}
+          matchId={match.id}
+          eventId={eventId}
+          canPick={canPick}
+          canUndo={canUndo}
+          reportAction={reportAction}
+          clearAction={clearAction}
+        />
+        <PlayerSlot
+          player={playerB}
+          isWinner={bWon}
+          isLoser={completed && !bWon}
+          matchComplete={completed}
+          winnerId={winnerId}
+          matchId={match.id}
+          eventId={eventId}
+          canPick={canPick}
+          canUndo={canUndo}
+          reportAction={reportAction}
+          clearAction={clearAction}
+        />
       </div>
     </div>
   );
@@ -294,8 +331,10 @@ function PlayerSlot({
   winnerId,
   matchId,
   eventId,
-  canReport,
+  canPick,
+  canUndo,
   reportAction,
+  clearAction,
 }: {
   player: Player | null;
   isWinner: boolean;
@@ -304,8 +343,10 @@ function PlayerSlot({
   winnerId: string | null;
   matchId: string;
   eventId?: string;
-  canReport: boolean;
-  reportAction?: (formData: FormData) => void | Promise<void>;
+  canPick: boolean;
+  canUndo: boolean;
+  reportAction?: FormAction;
+  clearAction?: FormAction;
 }) {
   const avatar = player
     ? matchComplete
@@ -320,75 +361,100 @@ function PlayerSlot({
         borderBottomColor: "#c25400",
         borderRightColor: "#c25400",
         boxShadow:
-          "0 3px 0 var(--jam-blue-deep), 0 0 18px -4px var(--jam-orange)",
+          "0 2px 0 var(--jam-blue-deep), 0 0 14px -2px var(--jam-orange)",
       }
     : {
         borderTopColor: "#6df0fb",
         borderLeftColor: "#6df0fb",
         borderBottomColor: "var(--jam-cyan-deep)",
         borderRightColor: "var(--jam-cyan-deep)",
-        boxShadow: "0 3px 0 var(--jam-blue-deep), 0 4px 8px rgba(0,0,0,0.4)",
+        boxShadow: "0 2px 0 var(--jam-blue-deep), 0 3px 6px rgba(0,0,0,0.4)",
       };
 
-  return (
-    <div className="flex w-full items-center gap-2">
-      <div
-        className={`relative h-14 w-14 shrink-0 overflow-hidden border-[3px] border-solid bg-[#7a4a1a] ${
-          isLoser ? "opacity-60 grayscale-[60%]" : ""
-        }`}
-        style={bevelStyle}
-      >
-        {avatar ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={avatar}
-            alt={player?.displayName ?? "TBD"}
-            className="absolute inset-0 h-full w-full object-cover"
-          />
-        ) : (
-          <div className="absolute inset-0 bg-gradient-to-br from-orange-900/40 to-amber-950/40" />
-        )}
-        {isWinner && (
-          <span className="arcade-sm absolute left-0.5 top-0.5 rounded bg-bezel/90 px-1 text-[8px] leading-none">
-            W
-          </span>
-        )}
-      </div>
-      <div className="min-w-0 flex-1">
+  // Click-to-pick while in progress; click-the-winner to undo when complete.
+  // Loser of a completed match is not clickable. Winner of a complete match
+  // is only clickable if downstream isn't already complete (canUndo).
+  const action: FormAction | undefined = canPick
+    ? reportAction
+    : isWinner && canUndo && clearAction
+      ? clearAction
+      : undefined;
+  const clickable = !!action && !!player;
+
+  const portrait = (
+    <div
+      className={`relative aspect-square w-full overflow-hidden border-[3px] border-solid bg-[#7a4a1a] ${
+        isLoser ? "opacity-55 grayscale-[55%]" : ""
+      }`}
+      style={bevelStyle}
+    >
+      {avatar ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={avatar}
+          alt={player?.displayName ?? "TBD"}
+          className="absolute inset-0 h-full w-full object-cover"
+        />
+      ) : (
+        <div className="absolute inset-0 bg-gradient-to-br from-orange-900/40 to-amber-950/40" />
+      )}
+      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 via-black/55 to-transparent px-0.5 pb-0.5 pt-2">
         <p
-          className={`truncate text-xs font-bold uppercase leading-tight ${
-            player ? "text-foreground" : "italic text-jam-cyan/40"
-          } ${isLoser ? "opacity-70" : ""}`}
+          className={`truncate text-center font-black uppercase leading-none tracking-tight text-[10px] ${
+            player
+              ? isWinner
+                ? "text-jam-yellow"
+                : "text-foreground"
+              : "italic text-jam-cyan/40"
+          }`}
         >
-          {player?.displayName ?? "TBD"}
+          {player ? firstName(player.displayName) : "TBD"}
         </p>
-        {player?.nickname && (
-          <p
-            className={`truncate text-[10px] font-bold uppercase leading-tight text-jam-yellow/80 ${
-              isLoser ? "opacity-70" : ""
-            }`}
-          >
-            {player.nickname}
-          </p>
-        )}
-        {canReport && player && (
-          <form action={reportAction} className="mt-1">
-            <input type="hidden" name="matchId" value={matchId} />
-            <input type="hidden" name="winnerId" value={player.id} />
-            {eventId && <input type="hidden" name="eventId" value={eventId} />}
-            <button
-              type="submit"
-              className="rounded-full border-2 border-jam-blue bg-gradient-to-b from-jam-yellow to-jam-orange px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-bezel hover:brightness-110 active:translate-y-px"
-            >
-              Won
-            </button>
-          </form>
-        )}
       </div>
+      {isWinner && (
+        <span
+          aria-hidden
+          className="absolute right-0.5 top-0.5 rounded bg-bezel/90 px-1 text-[8px] font-black leading-none text-jam-yellow"
+        >
+          W
+        </span>
+      )}
     </div>
   );
+
+  if (clickable && action) {
+    return (
+      <form action={action} className="block">
+        <input type="hidden" name="matchId" value={matchId} />
+        <input type="hidden" name="winnerId" value={player?.id ?? ""} />
+        {eventId && <input type="hidden" name="eventId" value={eventId} />}
+        <button
+          type="submit"
+          className="block w-full cursor-pointer p-0 transition hover:brightness-110 active:translate-y-px"
+          aria-label={
+            isWinner
+              ? `Undo ${player?.displayName ?? "winner"}`
+              : `Pick ${player?.displayName ?? ""} as winner`
+          }
+        >
+          {portrait}
+        </button>
+      </form>
+    );
+  }
+
+  return <div className="block w-full">{portrait}</div>;
 }
 
+/** Connector lines drawn in the column-gap to the LEFT of a round-N match.
+ *  - parent_above's right edge sits at x=-COL_GAP, y=25% of the cell.
+ *  - parent_below's right edge at x=-COL_GAP, y=75%.
+ *  - The "]" joint sits at x=-HALF_GAP.
+ *  - The outgoing horizontal goes from x=-HALF_GAP to x=0 (this match's left
+ *    edge) at y=50%.
+ *  - If one parent was a bye, that branch is suppressed and the vertical only
+ *    spans from the live branch to y=50%.
+ */
 function BracketConnector({
   aboveBye,
   belowBye,
@@ -406,11 +472,11 @@ function BracketConnector({
           aria-hidden
           style={{
             position: "absolute",
-            left: 0,
+            left: `-${COL_GAP}px`,
             top: "calc(25% - 1.5px)",
-            width: `${CONNECTOR_HALF}px`,
+            width: `${HALF_GAP}px`,
             height: "3px",
-            background: CONNECTOR_COLOR,
+            background: LINE,
           }}
         />
       )}
@@ -419,11 +485,11 @@ function BracketConnector({
           aria-hidden
           style={{
             position: "absolute",
-            left: 0,
+            left: `-${COL_GAP}px`,
             top: "calc(75% - 1.5px)",
-            width: `${CONNECTOR_HALF}px`,
+            width: `${HALF_GAP}px`,
             height: "3px",
-            background: CONNECTOR_COLOR,
+            background: LINE,
           }}
         />
       )}
@@ -432,11 +498,11 @@ function BracketConnector({
           aria-hidden
           style={{
             position: "absolute",
-            left: `${CONNECTOR_HALF - 1.5}px`,
+            left: `calc(-${HALF_GAP}px - 1.5px)`,
             top: verticalTop,
             height: `calc(${verticalBot} - ${verticalTop})`,
             width: "3px",
-            background: CONNECTOR_COLOR,
+            background: LINE,
           }}
         />
       )}
@@ -444,11 +510,11 @@ function BracketConnector({
         aria-hidden
         style={{
           position: "absolute",
-          left: `${CONNECTOR_HALF}px`,
+          left: `-${HALF_GAP}px`,
           top: "calc(50% - 1.5px)",
-          width: `${CONNECTOR_HALF}px`,
+          width: `${HALF_GAP}px`,
           height: "3px",
-          background: CONNECTOR_COLOR,
+          background: LINE,
         }}
       />
     </>
