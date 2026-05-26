@@ -92,6 +92,184 @@ export async function advanceMatch(matchId: string, winnerId: string) {
   });
 }
 
+/**
+ * Reverse an `advanceMatch` call. Used by the operator to undo a wrong winner.
+ *
+ * Refuses (throws) if downstream state has already advanced past a point we
+ * can safely roll back — i.e., a child match is already complete. Once the
+ * operator un-does the downstream match, they can come back and un-do this
+ * one.
+ *
+ * Cascade:
+ *   - Clear winnerId + completedAt on this match; flip it back to in_progress
+ *     (or pending if a player is missing, which shouldn't happen for a
+ *     previously-completed match)
+ *   - Yank the winner out of the next-win match's slot; if that match was
+ *     in_progress, demote it to pending
+ *   - Same for the loser slot in the next-lose match (double-elim)
+ *   - Demote the round to active if it was complete
+ *   - Demote the event to active if it was complete
+ */
+export async function clearMatch(matchId: string) {
+  const [match] = await db
+    .select()
+    .from(matches)
+    .where(eq(matches.id, matchId))
+    .limit(1);
+  if (!match) throw new Error(`Match ${matchId} not found`);
+  if (match.status !== "complete") return;
+  if (!match.winnerId) return;
+
+  // Guard against downstream complete state.
+  if (match.nextMatchWinId) {
+    const [next] = await db
+      .select()
+      .from(matches)
+      .where(eq(matches.id, match.nextMatchWinId))
+      .limit(1);
+    // Special case: grand-final reset that we pre-marked complete when the
+    // winners-side won. That's fine to roll back from.
+    const isResetSlot =
+      next?.bracketSide === "grand_final" && next?.slotIndex === 1;
+    if (next?.status === "complete" && !isResetSlot) {
+      throw new Error(
+        "Can't undo — the next match is already complete. Undo that one first."
+      );
+    }
+  }
+  if (match.nextMatchLoseId) {
+    const [nextL] = await db
+      .select()
+      .from(matches)
+      .where(eq(matches.id, match.nextMatchLoseId))
+      .limit(1);
+    if (nextL?.status === "complete") {
+      throw new Error(
+        "Can't undo — the next losers match is already complete. Undo that one first."
+      );
+    }
+  }
+
+  const winnerId = match.winnerId;
+  const loserId =
+    match.playerAId === winnerId ? match.playerBId : match.playerAId;
+
+  // Revert this match.
+  const bothPresent = !!match.playerAId && !!match.playerBId;
+  await db
+    .update(matches)
+    .set({
+      winnerId: null,
+      status: bothPresent ? "in_progress" : "pending",
+      completedAt: null,
+    })
+    .where(eq(matches.id, matchId));
+
+  // Special-case the grand-final reset cleanup: if we previously marked the
+  // reset slot as obsolete (winners-side won), un-mark it so the operator can
+  // re-pick.
+  const isFirstGrandFinal =
+    match.bracketSide === "grand_final" && match.slotIndex === 0;
+  if (isFirstGrandFinal && match.nextMatchWinId) {
+    await db
+      .update(matches)
+      .set({
+        status: "pending",
+        playerAId: null,
+        playerBId: null,
+        completedAt: null,
+      })
+      .where(eq(matches.id, match.nextMatchWinId));
+  } else if (match.nextMatchWinId && match.nextSlot) {
+    await clearNextSlot(match.nextMatchWinId, match.nextSlot);
+  }
+
+  if (match.nextMatchLoseId && match.nextLoseSlot && loserId) {
+    await clearNextSlot(match.nextMatchLoseId, match.nextLoseSlot);
+  }
+
+  // Demote round/event status. The state we observe before the update is the
+  // pre-undo state, which is the one we care about.
+  await db
+    .update(rounds)
+    .set({ status: "active", completedAt: null })
+    .where(and(eq(rounds.id, match.roundId), eq(rounds.status, "complete")));
+
+  await db
+    .update(events)
+    .set({ status: "active" })
+    .where(and(eq(events.id, match.eventId), eq(events.status, "complete")));
+
+  // Wipe final standings that were assigned at completion time.
+  await db
+    .update(eventPlayers)
+    .set({ finalStanding: null })
+    .where(eq(eventPlayers.eventId, match.eventId));
+
+  await publish(match.eventId, { type: "match_cleared", matchId });
+}
+
+/**
+ * Cascade-undo: clear this match and recursively clear any downstream match
+ * that was already completed. Unlike `clearMatch`, this does not refuse when
+ * the next match is complete — it just clears the deepest one first, then
+ * unwinds. Used by the bracket UI for:
+ *   - Clicking an "advanced" portrait in a later round to undo the win that
+ *     placed them there.
+ *   - Inverting a complete match (loser becomes winner): the original
+ *     winner's chain needs to be wiped before re-advancing.
+ */
+export async function cascadeClearMatch(matchId: string) {
+  const [m] = await db
+    .select()
+    .from(matches)
+    .where(eq(matches.id, matchId))
+    .limit(1);
+  if (!m || m.status !== "complete") return;
+  if (m.nextMatchWinId) {
+    const [next] = await db
+      .select()
+      .from(matches)
+      .where(eq(matches.id, m.nextMatchWinId))
+      .limit(1);
+    if (next?.status === "complete") {
+      await cascadeClearMatch(m.nextMatchWinId);
+    }
+  }
+  if (m.nextMatchLoseId) {
+    const [nextL] = await db
+      .select()
+      .from(matches)
+      .where(eq(matches.id, m.nextMatchLoseId))
+      .limit(1);
+    if (nextL?.status === "complete") {
+      await cascadeClearMatch(m.nextMatchLoseId);
+    }
+  }
+  await clearMatch(matchId);
+}
+
+async function clearNextSlot(nextMatchId: string, slot: "A" | "B") {
+  const patch =
+    slot === "A" ? { playerAId: null } : { playerBId: null };
+  await db.update(matches).set(patch).where(eq(matches.id, nextMatchId));
+
+  const [refreshed] = await db
+    .select()
+    .from(matches)
+    .where(eq(matches.id, nextMatchId))
+    .limit(1);
+  if (!refreshed) return;
+  // If both slots are no longer full, demote to pending (and clear any stray
+  // completed state — guarded but defensive).
+  if (!refreshed.playerAId || !refreshed.playerBId) {
+    await db
+      .update(matches)
+      .set({ status: "pending", winnerId: null, completedAt: null })
+      .where(eq(matches.id, nextMatchId));
+  }
+}
+
 async function fillNextSlot(
   nextMatchId: string,
   slot: "A" | "B",

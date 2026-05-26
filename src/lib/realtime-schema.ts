@@ -30,6 +30,7 @@ export const realtimeSchema = {
     winnerId: z.string(),
     loserId: z.string().nullable(),
   }),
+  match_cleared: z.object({ ts: z.number(), matchId: z.string() }),
   event_complete: z.object({ ts: z.number() }),
 } as const;
 
@@ -38,6 +39,7 @@ export const REALTIME_EVENT_NAMES = [
   "round_completed",
   "match_started",
   "match_complete",
+  "match_cleared",
   "event_complete",
 ] as const;
 
@@ -64,6 +66,7 @@ export type EventMessage =
       winnerId: string;
       loserId: string | null;
     }
+  | { type: "match_cleared"; ts: number; matchId: string }
   | { type: "event_complete"; ts: number };
 
 // Event types that trigger a hard refresh on the client. The SSE route drops
@@ -74,6 +77,7 @@ export const STRUCTURAL_EVENT_TYPES: ReadonlySet<EventMessage["type"]> = new Set
   "round_completed",
   "match_started",
   "match_complete",
+  "match_cleared",
   "event_complete",
 ]);
 

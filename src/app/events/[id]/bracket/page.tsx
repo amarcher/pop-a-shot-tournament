@@ -7,7 +7,12 @@ import {
   listRounds,
 } from "@/db/queries";
 import { Bracket } from "@/components/Bracket";
-import { reportMatchWinnerAction } from "@/app/events/actions";
+import {
+  cascadeClearMatchAction,
+  clearMatchWinnerAction,
+  invertMatchWinnerAction,
+  reportMatchWinnerAction,
+} from "@/app/events/actions";
 import { EventNav } from "@/components/EventNav";
 import { PageHeader } from "@/components/PageHeader";
 
@@ -68,6 +73,15 @@ export default async function BracketPage({
           format={event.format}
           reportAction={
             event.status === "active" ? reportMatchWinnerAction : undefined
+          }
+          clearAction={
+            event.status !== "draft" ? clearMatchWinnerAction : undefined
+          }
+          cascadeClearAction={
+            event.status !== "draft" ? cascadeClearMatchAction : undefined
+          }
+          invertAction={
+            event.status !== "draft" ? invertMatchWinnerAction : undefined
           }
           eventId={event.id}
         />
