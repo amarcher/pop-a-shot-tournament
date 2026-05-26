@@ -209,6 +209,46 @@ export async function clearMatch(matchId: string) {
   await publish(match.eventId, { type: "match_cleared", matchId });
 }
 
+/**
+ * Cascade-undo: clear this match and recursively clear any downstream match
+ * that was already completed. Unlike `clearMatch`, this does not refuse when
+ * the next match is complete — it just clears the deepest one first, then
+ * unwinds. Used by the bracket UI for:
+ *   - Clicking an "advanced" portrait in a later round to undo the win that
+ *     placed them there.
+ *   - Inverting a complete match (loser becomes winner): the original
+ *     winner's chain needs to be wiped before re-advancing.
+ */
+export async function cascadeClearMatch(matchId: string) {
+  const [m] = await db
+    .select()
+    .from(matches)
+    .where(eq(matches.id, matchId))
+    .limit(1);
+  if (!m || m.status !== "complete") return;
+  if (m.nextMatchWinId) {
+    const [next] = await db
+      .select()
+      .from(matches)
+      .where(eq(matches.id, m.nextMatchWinId))
+      .limit(1);
+    if (next?.status === "complete") {
+      await cascadeClearMatch(m.nextMatchWinId);
+    }
+  }
+  if (m.nextMatchLoseId) {
+    const [nextL] = await db
+      .select()
+      .from(matches)
+      .where(eq(matches.id, m.nextMatchLoseId))
+      .limit(1);
+    if (nextL?.status === "complete") {
+      await cascadeClearMatch(m.nextMatchLoseId);
+    }
+  }
+  await clearMatch(matchId);
+}
+
 async function clearNextSlot(nextMatchId: string, slot: "A" | "B") {
   const patch =
     slot === "A" ? { playerAId: null } : { playerBId: null };

@@ -43,7 +43,6 @@ function firstName(displayName: string): string {
   return displayName.trim().split(/\s+/)[0]?.toUpperCase() ?? "";
 }
 
-const COL_WIDTH = 110;
 const COL_GAP = 28;
 const HALF_GAP = COL_GAP / 2;
 const LINE = "rgba(109, 240, 251, 0.85)";
@@ -54,6 +53,8 @@ export function Bracket({
   format,
   reportAction,
   clearAction,
+  cascadeClearAction,
+  invertAction,
   eventId,
 }: {
   matches: HydratedMatch[];
@@ -61,6 +62,8 @@ export function Bracket({
   format: "single_elim" | "double_elim";
   reportAction?: FormAction;
   clearAction?: FormAction;
+  cascadeClearAction?: FormAction;
+  invertAction?: FormAction;
   eventId: string;
 }) {
   if (format === "single_elim") {
@@ -72,6 +75,8 @@ export function Bracket({
         rounds={rounds}
         reportAction={reportAction}
         clearAction={clearAction}
+        cascadeClearAction={cascadeClearAction}
+        invertAction={invertAction}
         eventId={eventId}
       />
     );
@@ -90,6 +95,8 @@ export function Bracket({
         rounds={rounds}
         reportAction={reportAction}
         clearAction={clearAction}
+        cascadeClearAction={cascadeClearAction}
+        invertAction={invertAction}
         eventId={eventId}
       />
       <BracketSide
@@ -99,6 +106,8 @@ export function Bracket({
         rounds={rounds}
         reportAction={reportAction}
         clearAction={clearAction}
+        cascadeClearAction={cascadeClearAction}
+        invertAction={invertAction}
         eventId={eventId}
         skipConnectors
       />
@@ -140,6 +149,8 @@ function BracketSide({
   rounds,
   reportAction,
   clearAction,
+  cascadeClearAction,
+  invertAction,
   eventId,
   skipConnectors = false,
 }: {
@@ -149,6 +160,8 @@ function BracketSide({
   rounds: Round[];
   reportAction?: FormAction;
   clearAction?: FormAction;
+  cascadeClearAction?: FormAction;
+  invertAction?: FormAction;
   eventId: string;
   skipConnectors?: boolean;
 }) {
@@ -206,9 +219,9 @@ function BracketSide({
           spans 2·2^(N-1) leaf rows, sitting vertically centered between its
           two parents. */}
       <div
-        className="mt-3 hidden overflow-x-auto pb-4 md:grid"
+        className="mt-3 hidden pb-4 md:grid"
         style={{
-          gridTemplateColumns: `repeat(${sideRounds.length}, ${COL_WIDTH}px)`,
+          gridTemplateColumns: `repeat(${sideRounds.length}, minmax(0, 1fr))`,
           gridTemplateRows: `repeat(${bracketRows}, minmax(60px, auto))`,
           columnGap: `${COL_GAP}px`,
         }}
@@ -236,8 +249,12 @@ function BracketSide({
                 aboveBye={aboveBye}
                 belowBye={belowBye}
                 canUndo={canUndo(cell)}
+                parentForA={parentAbove}
+                parentForB={parentBelow}
                 reportAction={reportAction}
                 clearAction={clearAction}
+                cascadeClearAction={cascadeClearAction}
+                invertAction={invertAction}
                 eventId={eventId}
               />
             );
@@ -257,8 +274,12 @@ function BracketMatch({
   aboveBye,
   belowBye,
   canUndo,
+  parentForA,
+  parentForB,
   reportAction,
   clearAction,
+  cascadeClearAction,
+  invertAction,
   eventId,
 }: {
   cell: HydratedMatch;
@@ -269,16 +290,47 @@ function BracketMatch({
   aboveBye: boolean;
   belowBye: boolean;
   canUndo: boolean;
+  parentForA: HydratedMatch | null;
+  parentForB: HydratedMatch | null;
   reportAction?: FormAction;
   clearAction?: FormAction;
+  cascadeClearAction?: FormAction;
+  invertAction?: FormAction;
   eventId: string;
 }) {
   const { match, playerA, playerB } = cell;
   const completed = match.status === "complete";
+  const inProgress = match.status === "in_progress";
   const winnerId = match.winnerId;
   const aWon = !!winnerId && winnerId === playerA?.id;
   const bWon = !!winnerId && winnerId === playerB?.id;
-  const canPick = !completed && !!reportAction && !!playerA && !!playerB;
+
+  const slotProps = (
+    player: Player | null,
+    isWinner: boolean,
+    isLoser: boolean,
+    parent: HydratedMatch | null
+  ) => ({
+    player,
+    isWinner,
+    isLoser,
+    matchComplete: completed,
+    winnerId,
+    eventId,
+    action: chooseAction({
+      player,
+      isWinner,
+      cellMatch: match,
+      inProgress,
+      completed,
+      canUndo,
+      parent,
+      reportAction,
+      clearAction,
+      cascadeClearAction,
+      invertAction,
+    }),
+  });
 
   return (
     <div
@@ -292,35 +344,94 @@ function BracketMatch({
         <BracketConnector aboveBye={aboveBye} belowBye={belowBye} />
       )}
       <div className="flex w-full flex-col gap-1 rounded-md border-2 border-jam-cyan/60 bg-bezel/40 p-1">
-        <PlayerSlot
-          player={playerA}
-          isWinner={aWon}
-          isLoser={completed && !aWon}
-          matchComplete={completed}
-          winnerId={winnerId}
-          matchId={match.id}
-          eventId={eventId}
-          canPick={canPick}
-          canUndo={canUndo}
-          reportAction={reportAction}
-          clearAction={clearAction}
-        />
-        <PlayerSlot
-          player={playerB}
-          isWinner={bWon}
-          isLoser={completed && !bWon}
-          matchComplete={completed}
-          winnerId={winnerId}
-          matchId={match.id}
-          eventId={eventId}
-          canPick={canPick}
-          canUndo={canUndo}
-          reportAction={reportAction}
-          clearAction={clearAction}
-        />
+        <PlayerSlot {...slotProps(playerA, aWon, completed && !aWon, parentForA)} />
+        <PlayerSlot {...slotProps(playerB, bWon, completed && !bWon, parentForB)} />
       </div>
     </div>
   );
+}
+
+/** Encodes which server action a single PlayerSlot's button should call,
+ *  with the hidden form inputs needed to invoke it. `null` means the slot
+ *  is not clickable. */
+interface SlotAction {
+  fn: FormAction;
+  matchId: string;
+  winnerId?: string;
+  aria: string;
+}
+
+function chooseAction({
+  player,
+  isWinner,
+  cellMatch,
+  inProgress,
+  completed,
+  canUndo,
+  parent,
+  reportAction,
+  clearAction,
+  cascadeClearAction,
+  invertAction,
+}: {
+  player: Player | null;
+  isWinner: boolean;
+  cellMatch: Match;
+  inProgress: boolean;
+  completed: boolean;
+  canUndo: boolean;
+  parent: HydratedMatch | null;
+  reportAction?: FormAction;
+  clearAction?: FormAction;
+  cascadeClearAction?: FormAction;
+  invertAction?: FormAction;
+}): SlotAction | null {
+  if (!player) return null;
+
+  if (inProgress && reportAction) {
+    return {
+      fn: reportAction,
+      matchId: cellMatch.id,
+      winnerId: player.id,
+      aria: `Pick ${player.displayName} as winner`,
+    };
+  }
+  if (completed && isWinner && canUndo && clearAction) {
+    return {
+      fn: clearAction,
+      matchId: cellMatch.id,
+      aria: `Undo ${player.displayName}'s win`,
+    };
+  }
+  if (completed && !isWinner && invertAction) {
+    return {
+      fn: invertAction,
+      matchId: cellMatch.id,
+      winnerId: player.id,
+      aria: `Make ${player.displayName} the winner instead`,
+    };
+  }
+  // "Advanced" portrait: this match is pending (waiting on the other slot)
+  // and this player is here because they won the parent match. A click peels
+  // back their win chain. Skip when the parent is a bye — that "win" is
+  // structural; rolling it back would leave the bracket in a broken state
+  // with no opponent to redo against.
+  const isPending = cellMatch.status === "pending";
+  if (
+    isPending &&
+    parent &&
+    parent.match.status === "complete" &&
+    parent.match.winnerId === player.id &&
+    !isByeMatch(parent) &&
+    cascadeClearAction
+  ) {
+    return {
+      fn: cascadeClearAction,
+      matchId: parent.match.id,
+      aria: `Undo ${player.displayName}'s advance`,
+    };
+  }
+  return null;
 }
 
 function PlayerSlot({
@@ -329,24 +440,16 @@ function PlayerSlot({
   isLoser,
   matchComplete,
   winnerId,
-  matchId,
   eventId,
-  canPick,
-  canUndo,
-  reportAction,
-  clearAction,
+  action,
 }: {
   player: Player | null;
   isWinner: boolean;
   isLoser: boolean;
   matchComplete: boolean;
   winnerId: string | null;
-  matchId: string;
   eventId?: string;
-  canPick: boolean;
-  canUndo: boolean;
-  reportAction?: FormAction;
-  clearAction?: FormAction;
+  action: SlotAction | null;
 }) {
   const avatar = player
     ? matchComplete
@@ -371,19 +474,11 @@ function PlayerSlot({
         boxShadow: "0 2px 0 var(--jam-blue-deep), 0 3px 6px rgba(0,0,0,0.4)",
       };
 
-  // Click-to-pick while in progress; click-the-winner to undo when complete.
-  // Loser of a completed match is not clickable. Winner of a complete match
-  // is only clickable if downstream isn't already complete (canUndo).
-  const action: FormAction | undefined = canPick
-    ? reportAction
-    : isWinner && canUndo && clearAction
-      ? clearAction
-      : undefined;
-  const clickable = !!action && !!player;
+  const clickable = !!action;
 
   const portrait = (
     <div
-      className={`relative aspect-square w-full overflow-hidden border-[3px] border-solid bg-[#7a4a1a] ${
+      className={`relative mx-auto aspect-square w-full max-w-[140px] overflow-hidden border-[3px] border-solid bg-[#7a4a1a] ${
         isLoser ? "opacity-55 grayscale-[55%]" : ""
       }`}
       style={bevelStyle}
@@ -424,18 +519,16 @@ function PlayerSlot({
 
   if (clickable && action) {
     return (
-      <form action={action} className="block">
-        <input type="hidden" name="matchId" value={matchId} />
-        <input type="hidden" name="winnerId" value={player?.id ?? ""} />
+      <form action={action.fn} className="block">
+        <input type="hidden" name="matchId" value={action.matchId} />
+        {action.winnerId !== undefined && (
+          <input type="hidden" name="winnerId" value={action.winnerId} />
+        )}
         {eventId && <input type="hidden" name="eventId" value={eventId} />}
         <button
           type="submit"
           className="block w-full cursor-pointer p-0 transition hover:brightness-110 active:translate-y-px"
-          aria-label={
-            isWinner
-              ? `Undo ${player?.displayName ?? "winner"}`
-              : `Pick ${player?.displayName ?? ""} as winner`
-          }
+          aria-label={action.aria}
         >
           {portrait}
         </button>

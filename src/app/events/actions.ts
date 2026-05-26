@@ -39,7 +39,11 @@ import {
   seedRoundRobin,
   seedSingleElim,
 } from "@/lib/bracket/materialize";
-import { advanceMatch, clearMatch } from "@/lib/bracket/advance";
+import {
+  advanceMatch,
+  cascadeClearMatch,
+  clearMatch,
+} from "@/lib/bracket/advance";
 
 // Revalidation is request-scoped; in scripts (verify, seeds) we don't have
 // a request, so swallow the throw rather than crash.
@@ -337,6 +341,51 @@ export async function clearMatchWinnerAction(formData: FormData) {
   if (!matchId) throw new Error("matchId required");
 
   await clearMatch(matchId);
+
+  if (eventId) {
+    revalidatePath(`/events/${eventId}`);
+    revalidatePath(`/events/${eventId}/bracket`);
+    revalidatePath(`/events/${eventId}/play`);
+    revalidatePath(`/events/${eventId}/broadcast`);
+  }
+}
+
+/**
+ * Cascade-undo: clear a match and every downstream match that's also
+ * complete. Used when the operator clicks a player's "advanced" portrait in
+ * a later round — that single click should peel back all of their wins from
+ * that point forward.
+ */
+export async function cascadeClearMatchAction(formData: FormData) {
+  const matchId = String(formData.get("matchId") ?? "");
+  const eventId = String(formData.get("eventId") ?? "");
+  if (!matchId) throw new Error("matchId required");
+
+  await cascadeClearMatch(matchId);
+
+  if (eventId) {
+    revalidatePath(`/events/${eventId}`);
+    revalidatePath(`/events/${eventId}/bracket`);
+    revalidatePath(`/events/${eventId}/play`);
+    revalidatePath(`/events/${eventId}/broadcast`);
+  }
+}
+
+/**
+ * Invert a completed match's winner — operator clicks the player who's
+ * currently marked the loser. The current winner's downstream wins are
+ * cascade-cleared first, then the click-target is advanced as the new
+ * winner.
+ */
+export async function invertMatchWinnerAction(formData: FormData) {
+  const matchId = String(formData.get("matchId") ?? "");
+  const winnerId = String(formData.get("winnerId") ?? "");
+  const eventId = String(formData.get("eventId") ?? "");
+  if (!matchId) throw new Error("matchId required");
+  if (!winnerId) throw new Error("winnerId required");
+
+  await cascadeClearMatch(matchId);
+  await advanceMatch(matchId, winnerId);
 
   if (eventId) {
     revalidatePath(`/events/${eventId}`);
