@@ -1,3 +1,4 @@
+import { Fragment } from "react";
 import type { Match, Player, Round } from "@/db/schema";
 import { pickMatchOutcomeAvatar, pickPlayerAvatar } from "@/lib/avatar";
 import { MatchCard } from "./MatchCard";
@@ -17,8 +18,6 @@ function isByeMatch(m: HydratedMatch): boolean {
   );
 }
 
-// Undo is safe only when nothing downstream has already locked in. Once a
-// child match is complete, the user has to undo that one first.
 function canUndoFn(
   matchById: Map<string, HydratedMatch>
 ): (cell: HydratedMatch) => boolean {
@@ -43,9 +42,9 @@ function firstName(displayName: string): string {
   return displayName.trim().split(/\s+/)[0]?.toUpperCase() ?? "";
 }
 
-const COL_GAP = 28;
-const HALF_GAP = COL_GAP / 2;
-const LINE = "rgba(109, 240, 251, 0.85)";
+const LINE = "#1cc8d8"; // jam-cyan, full opacity — NBA-Jam neon
+const LINE_PX = 4;
+const LINE_GLOW = "0 0 6px rgba(28, 200, 216, 0.55)";
 
 export function Bracket({
   matches,
@@ -178,11 +177,22 @@ function BracketSide({
   const bracketRows = (matchesByRound[0]?.length ?? 0) * 2;
   const canUndo = canUndoFn(new Map(matches.map((m) => [m.match.id, m])));
 
+  // Alternating tracks: avatar (1fr), gap (2fr), avatar (1fr), gap (2fr), ...,
+  // avatar (1fr). This means each gap column is twice the width of an avatar
+  // column — exactly enough to draw an outgoing connector whose two horizontal
+  // legs (the "]" and the mid-line to the next round) each span one avatar
+  // width.
+  const numRounds = sideRounds.length;
+  const trackParts: string[] = [];
+  for (let i = 0; i < numRounds - 1; i++) trackParts.push("1fr 2fr");
+  trackParts.push("1fr");
+  const trackSpec = trackParts.join(" ");
+
   return (
     <section>
       <h3 className="arcade-sm text-sm">{title}</h3>
 
-      {/* Mobile: linear stack — tree shape doesn't fit. */}
+      {/* Mobile: linear stack. */}
       <div className="mt-3 space-y-6 md:hidden">
         {sideRounds.map((round, roundIdx) => {
           const cells = matchesByRound[roundIdx].filter(
@@ -213,50 +223,55 @@ function BracketSide({
         })}
       </div>
 
-      {/* Desktop tree. Fixed-width columns + column-gap so connector lines
-          drawn in the gap visually originate at the parent box's right edge
-          and terminate at the child box's left edge. Each round-N match
-          spans 2·2^(N-1) leaf rows, sitting vertically centered between its
-          two parents. */}
+      {/* Desktop tree. */}
       <div
         className="mt-3 hidden pb-4 md:grid"
         style={{
-          gridTemplateColumns: `repeat(${sideRounds.length}, minmax(0, 1fr))`,
-          gridTemplateRows: `repeat(${bracketRows}, minmax(60px, auto))`,
-          columnGap: `${COL_GAP}px`,
+          gridTemplateColumns: trackSpec,
+          gridTemplateRows: `repeat(${bracketRows}, minmax(0, auto))`,
+          columnGap: 0,
         }}
       >
         {sideRounds.map((round, roundIdx) => {
           const cells = matchesByRound[roundIdx];
           const parents = roundIdx > 0 ? matchesByRound[roundIdx - 1] : null;
           const matchSpan = Math.pow(2, roundIdx + 1);
+          const avatarColumn = 2 * roundIdx + 1;
+          const outgoingColumn = avatarColumn + 1;
+          const isLastRound = roundIdx === numRounds - 1;
+
           return cells.map((cell, cellIdx) => {
             if (roundIdx === 0 && isByeMatch(cell)) return null;
             const rowStart = cellIdx * matchSpan + 1;
             const parentAbove = parents?.[cellIdx * 2] ?? null;
             const parentBelow = parents?.[cellIdx * 2 + 1] ?? null;
-            const aboveBye = parentAbove ? isByeMatch(parentAbove) : true;
-            const belowBye = parentBelow ? isByeMatch(parentBelow) : true;
 
             return (
-              <BracketMatch
-                key={cell.match.id}
-                cell={cell}
-                gridColumn={roundIdx + 1}
-                rowStart={rowStart}
-                rowSpan={matchSpan}
-                drawIncomingConnector={roundIdx > 0 && !skipConnectors}
-                aboveBye={aboveBye}
-                belowBye={belowBye}
-                canUndo={canUndo(cell)}
-                parentForA={parentAbove}
-                parentForB={parentBelow}
-                reportAction={reportAction}
-                clearAction={clearAction}
-                cascadeClearAction={cascadeClearAction}
-                invertAction={invertAction}
-                eventId={eventId}
-              />
+              <Fragment key={cell.match.id}>
+                <BracketMatch
+                  cell={cell}
+                  gridColumn={avatarColumn}
+                  rowStart={rowStart}
+                  rowSpan={matchSpan}
+                  canUndo={canUndo(cell)}
+                  parentForA={parentAbove}
+                  parentForB={parentBelow}
+                  reportAction={reportAction}
+                  clearAction={clearAction}
+                  cascadeClearAction={cascadeClearAction}
+                  invertAction={invertAction}
+                  eventId={eventId}
+                />
+                {!isLastRound && !skipConnectors && (
+                  <OutgoingConnector
+                    gridColumn={outgoingColumn}
+                    rowStart={rowStart}
+                    rowSpan={matchSpan}
+                    hasTop={!!cell.playerA}
+                    hasBottom={!!cell.playerB}
+                  />
+                )}
+              </Fragment>
             );
           });
         })}
@@ -270,9 +285,6 @@ function BracketMatch({
   gridColumn,
   rowStart,
   rowSpan,
-  drawIncomingConnector,
-  aboveBye,
-  belowBye,
   canUndo,
   parentForA,
   parentForB,
@@ -286,9 +298,6 @@ function BracketMatch({
   gridColumn: number;
   rowStart: number;
   rowSpan: number;
-  drawIncomingConnector: boolean;
-  aboveBye: boolean;
-  belowBye: boolean;
   canUndo: boolean;
   parentForA: HydratedMatch | null;
   parentForB: HydratedMatch | null;
@@ -305,55 +314,53 @@ function BracketMatch({
   const aWon = !!winnerId && winnerId === playerA?.id;
   const bWon = !!winnerId && winnerId === playerB?.id;
 
-  const slotProps = (
+  const renderSlot = (
     player: Player | null,
     isWinner: boolean,
     isLoser: boolean,
     parent: HydratedMatch | null
-  ) => ({
-    player,
-    isWinner,
-    isLoser,
-    matchComplete: completed,
-    winnerId,
-    eventId,
-    action: chooseAction({
-      player,
-      isWinner,
-      cellMatch: match,
-      inProgress,
-      completed,
-      canUndo,
-      parent,
-      reportAction,
-      clearAction,
-      cascadeClearAction,
-      invertAction,
-    }),
-  });
+  ) => (
+    <PlayerSlot
+      player={player}
+      isWinner={isWinner}
+      isLoser={isLoser}
+      matchComplete={completed}
+      winnerId={winnerId}
+      eventId={eventId}
+      action={chooseAction({
+        player,
+        isWinner,
+        cellMatch: match,
+        inProgress,
+        completed,
+        canUndo,
+        parent,
+        reportAction,
+        clearAction,
+        cascadeClearAction,
+        invertAction,
+      })}
+    />
+  );
 
   return (
     <div
-      className="relative flex items-center"
+      className="flex flex-col"
       style={{
         gridColumn,
         gridRow: `${rowStart} / span ${rowSpan}`,
       }}
     >
-      {drawIncomingConnector && (
-        <BracketConnector aboveBye={aboveBye} belowBye={belowBye} />
-      )}
-      <div className="flex w-full flex-col gap-1 rounded-md border-2 border-jam-cyan/60 bg-bezel/40 p-1">
-        <PlayerSlot {...slotProps(playerA, aWon, completed && !aWon, parentForA)} />
-        <PlayerSlot {...slotProps(playerB, bWon, completed && !bWon, parentForB)} />
+      <div className="flex flex-1 items-center justify-center px-1">
+        {renderSlot(playerA, aWon, completed && !aWon, parentForA)}
+      </div>
+      <div className="flex flex-1 items-center justify-center px-1">
+        {renderSlot(playerB, bWon, completed && !bWon, parentForB)}
       </div>
     </div>
   );
 }
 
-/** Encodes which server action a single PlayerSlot's button should call,
- *  with the hidden form inputs needed to invoke it. `null` means the slot
- *  is not clickable. */
 interface SlotAction {
   fn: FormAction;
   matchId: string;
@@ -411,11 +418,6 @@ function chooseAction({
       aria: `Make ${player.displayName} the winner instead`,
     };
   }
-  // "Advanced" portrait: this match is pending (waiting on the other slot)
-  // and this player is here because they won the parent match. A click peels
-  // back their win chain. Skip when the parent is a bye — that "win" is
-  // structural; rolling it back would leave the bracket in a broken state
-  // with no opponent to redo against.
   const isPending = cellMatch.status === "pending";
   if (
     isPending &&
@@ -478,8 +480,8 @@ function PlayerSlot({
 
   const portrait = (
     <div
-      className={`relative mx-auto aspect-square w-full max-w-[140px] overflow-hidden border-[3px] border-solid bg-[#7a4a1a] ${
-        isLoser ? "opacity-55 grayscale-[55%]" : ""
+      className={`relative aspect-square w-full overflow-hidden border-[3px] border-solid bg-[#1a0e07] ${
+        isLoser ? "grayscale-[65%]" : ""
       }`}
       style={bevelStyle}
     >
@@ -495,7 +497,7 @@ function PlayerSlot({
       )}
       <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 via-black/55 to-transparent px-0.5 pb-0.5 pt-2">
         <p
-          className={`truncate text-center font-black uppercase leading-none tracking-tight text-[10px] ${
+          className={`truncate text-center font-black uppercase leading-none tracking-tight text-[10px] sm:text-xs ${
             player
               ? isWinner
                 ? "text-jam-yellow"
@@ -519,7 +521,7 @@ function PlayerSlot({
 
   if (clickable && action) {
     return (
-      <form action={action.fn} className="block">
+      <form action={action.fn} className="block w-full">
         <input type="hidden" name="matchId" value={action.matchId} />
         {action.winnerId !== undefined && (
           <input type="hidden" name="winnerId" value={action.winnerId} />
@@ -539,50 +541,62 @@ function PlayerSlot({
   return <div className="block w-full">{portrait}</div>;
 }
 
-/** Connector lines drawn in the column-gap to the LEFT of a round-N match.
- *  - parent_above's right edge sits at x=-COL_GAP, y=25% of the cell.
- *  - parent_below's right edge at x=-COL_GAP, y=75%.
- *  - The "]" joint sits at x=-HALF_GAP.
- *  - The outgoing horizontal goes from x=-HALF_GAP to x=0 (this match's left
- *    edge) at y=50%.
- *  - If one parent was a bye, that branch is suppressed and the vertical only
- *    spans from the live branch to y=50%.
- */
-function BracketConnector({
-  aboveBye,
-  belowBye,
+/** Outgoing connector from a single match. Rendered in the gap column to the
+ *  match's right, spanning the same row range. The two horizontals exit from
+ *  each avatar's vertical center (25% / 75% of the cell), drop to a vertical
+ *  at the gap's midpoint, then a single horizontal continues right to the
+ *  next round's avatar. */
+function OutgoingConnector({
+  gridColumn,
+  rowStart,
+  rowSpan,
+  hasTop,
+  hasBottom,
 }: {
-  aboveBye: boolean;
-  belowBye: boolean;
+  gridColumn: number;
+  rowStart: number;
+  rowSpan: number;
+  hasTop: boolean;
+  hasBottom: boolean;
 }) {
-  if (aboveBye && belowBye) return null;
-  const verticalTop = aboveBye ? "50%" : "25%";
-  const verticalBot = belowBye ? "50%" : "75%";
+  if (!hasTop && !hasBottom) return null;
+  const verticalTop = hasTop ? "25%" : "50%";
+  const verticalBot = hasBottom ? "75%" : "50%";
+  const half = LINE_PX / 2;
+
   return (
-    <>
-      {!aboveBye && (
+    <div
+      className="relative"
+      style={{
+        gridColumn,
+        gridRow: `${rowStart} / span ${rowSpan}`,
+      }}
+    >
+      {hasTop && (
         <span
           aria-hidden
           style={{
             position: "absolute",
-            left: `-${COL_GAP}px`,
-            top: "calc(25% - 1.5px)",
-            width: `${HALF_GAP}px`,
-            height: "3px",
+            left: 0,
+            top: `calc(25% - ${half}px)`,
+            width: "50%",
+            height: LINE_PX,
             background: LINE,
+            boxShadow: LINE_GLOW,
           }}
         />
       )}
-      {!belowBye && (
+      {hasBottom && (
         <span
           aria-hidden
           style={{
             position: "absolute",
-            left: `-${COL_GAP}px`,
-            top: "calc(75% - 1.5px)",
-            width: `${HALF_GAP}px`,
-            height: "3px",
+            left: 0,
+            top: `calc(75% - ${half}px)`,
+            width: "50%",
+            height: LINE_PX,
             background: LINE,
+            boxShadow: LINE_GLOW,
           }}
         />
       )}
@@ -591,11 +605,12 @@ function BracketConnector({
           aria-hidden
           style={{
             position: "absolute",
-            left: `calc(-${HALF_GAP}px - 1.5px)`,
+            left: `calc(50% - ${half}px)`,
             top: verticalTop,
             height: `calc(${verticalBot} - ${verticalTop})`,
-            width: "3px",
+            width: LINE_PX,
             background: LINE,
+            boxShadow: LINE_GLOW,
           }}
         />
       )}
@@ -603,13 +618,14 @@ function BracketConnector({
         aria-hidden
         style={{
           position: "absolute",
-          left: `-${HALF_GAP}px`,
-          top: "calc(50% - 1.5px)",
-          width: `${HALF_GAP}px`,
-          height: "3px",
+          left: "50%",
+          top: `calc(50% - ${half}px)`,
+          width: "50%",
+          height: LINE_PX,
           background: LINE,
+          boxShadow: LINE_GLOW,
         }}
       />
-    </>
+    </div>
   );
 }
