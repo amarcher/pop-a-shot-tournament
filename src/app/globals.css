@@ -184,13 +184,14 @@ body {
   color: var(--foreground);
 }
 
-/* Selected state for scoreboard cards that wrap a radio/checkbox.
+/* Selected state for scoreboard cards that wrap a radio.
    Tailwind utilities lose to `.scoreboard` (unlayered shorthand border),
-   so we override here with the same specificity. */
-.scoreboard:has(input[type="radio"]:checked),
-.scoreboard:has(input[type="checkbox"]:checked) {
+   so we override here with the same specificity. Checkbox cards (e.g. the
+   roster) intentionally don't get this treatment — the tick mark already
+   conveys state. */
+.scoreboard:has(input[type="radio"]:checked) {
   border-color: var(--jam-yellow);
-  background-color: rgba(230, 57, 70, 0.18);
+  background-color: #3d1a1f;
   box-shadow:
     inset 0 0 0 2px var(--jam-yellow),
     0 6px 0 var(--jam-blue-deep),
