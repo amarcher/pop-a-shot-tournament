@@ -95,7 +95,7 @@ export default async function NewEventPage({
             name="totalRounds"
             min={1}
             max={9}
-            placeholder="auto: ceil(log₂ players)"
+            placeholder="Leave blank for default"
             className="mt-2 w-72 scoreboard px-3 py-2 text-foreground placeholder:text-foreground/30 focus:border-jam-yellow focus:outline-none"
           />
         </label>
