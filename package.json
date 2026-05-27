@@ -8,6 +8,7 @@
     "start": "next start",
     "lan": "bash scripts/lan.sh",
     "verify": "tsx scripts/verify-bracket.ts",
+    "blob:inspect": "tsx scripts/inspect-blob.ts",
     "lint": "eslint",
     "test": "vitest run",
     "test:watch": "vitest",
