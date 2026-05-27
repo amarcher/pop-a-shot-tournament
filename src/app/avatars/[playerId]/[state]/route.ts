@@ -6,7 +6,8 @@ import type { NextRequest } from "next/server";
 // src/lib/baller.ts (used when BLOB_READ_WRITE_TOKEN is unset). In prod the
 // DB stores absolute Vercel Blob URLs and this route is never hit.
 //
-// Path: /avatars/<playerId>/<state> where state ∈ {selfie, neutral, victory, defeated}
+// Path: /avatars/<playerId>/<state> where state is a legacy stable name
+// or a generated key like neutral-<uuid>.
 export async function GET(
   _req: NextRequest,
   { params }: { params: Promise<{ playerId: string; state: string }> }
@@ -16,7 +17,7 @@ export async function GET(
   if (!/^[a-z0-9-]+$/.test(playerId)) {
     return new Response("Bad playerId", { status: 400 });
   }
-  if (!["selfie", "neutral", "victory", "defeated"].includes(state)) {
+  if (!/^(selfie|neutral|victory|defeated)(-[a-f0-9-]+)?$/.test(state)) {
     return new Response("Bad state", { status: 400 });
   }
   const path = join(
@@ -31,8 +32,6 @@ export async function GET(
     return new Response(new Uint8Array(buf), {
       headers: {
         "Content-Type": "image/jpeg",
-        // Allow the ?v= cache-buster to do its job; otherwise the browser
-        // would happily reuse the old bytes on regen.
         "Cache-Control": "public, max-age=31536000, immutable",
       },
     });
