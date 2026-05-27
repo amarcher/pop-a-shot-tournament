@@ -37,6 +37,7 @@ export function BallerGallery({ player }: { player: Player }) {
               {url ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
+                  key={url}
                   src={url}
                   alt={`${player.displayName} — ${s.label}`}
                   className="absolute inset-0 h-full w-full object-cover"

@@ -1,7 +1,8 @@
 import "server-only";
-import { mkdir, writeFile } from "node:fs/promises";
+import { randomUUID } from "node:crypto";
+import { mkdir, readFile, unlink, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { put } from "@vercel/blob";
+import { del, put } from "@vercel/blob";
 import sharp from "sharp";
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const heicConvert = require("heic-convert") as (args: {
@@ -78,44 +79,102 @@ export async function normalizeSelfieToSquareJpeg(
 /**
  * Persist a generated JPEG and return the DB-bound URL.
  *
- * In prod (BLOB_READ_WRITE_TOKEN set): writes to Vercel Blob with the stable
- * key + allowOverwrite so a regen reuses the same Blob object. Cache-buster
- * suffix pushes new bytes through the browser cache.
+ * In prod (BLOB_READ_WRITE_TOKEN set): writes immutable per-generation Blob
+ * keys. We do not overwrite existing portrait blobs because CDN propagation
+ * can otherwise leave one state showing old bytes while another shows new.
  *
  * In dev (no Blob token): writes to `.local/avatars/<key>` on disk and
- * returns a `/avatars/<key>?v=…` URL that the matching route handler serves.
+ * returns a `/avatars/<key>` URL that the matching route handler serves.
  * Stays out of `public/` so Next's build manifest doesn't snapshot it.
  */
-async function uploadPortrait(
-  blobKey: string,
-  buf: Buffer
-): Promise<string> {
+async function uploadPortrait(blobKey: string, buf: Buffer): Promise<string> {
   if (process.env.BLOB_READ_WRITE_TOKEN) {
     const result = await put(blobKey, buf, {
       access: "public",
       addRandomSuffix: false,
-      allowOverwrite: true,
+      allowOverwrite: false,
       contentType: "image/jpeg",
     });
-    return `${result.url}?v=${Date.now()}`;
+    return result.url;
   }
 
-  // Local-disk fallback. Keep the same `avatars/<id>/<state>.jpg` key shape
-  // so swapping providers later doesn't change DB rows.
   const fsRoot = join(process.cwd(), ".local");
   const target = join(fsRoot, blobKey);
   const dir = target.slice(0, target.lastIndexOf("/"));
   await mkdir(dir, { recursive: true });
   await writeFile(target, buf);
   // The route handler at /avatars/[playerId]/[state] reads from .local/avatars.
-  return `/${blobKey.replace(/\.jpg$/, "")}?v=${Date.now()}`;
+  return `/${blobKey.replace(/\.jpg$/, "")}`;
 }
 
 export async function uploadBallerSelfie(
   playerId: string,
   selfieBuf: Buffer
 ): Promise<string> {
-  return uploadPortrait(`avatars/${playerId}/selfie.jpg`, selfieBuf);
+  return uploadPortrait(
+    `avatars/${playerId}/selfie-${randomUUID()}.jpg`,
+    selfieBuf
+  );
+}
+
+export async function loadBallerSelfieFromUrl(
+  playerId: string,
+  selfieUrl: string,
+  signal?: AbortSignal
+): Promise<Buffer> {
+  if (selfieUrl.startsWith("/avatars/")) {
+    const pathname = new URL(selfieUrl, "http://local").pathname;
+    const filename = pathname.split("/").pop() ?? "selfie.jpg";
+    return readFile(
+      join(process.cwd(), ".local", "avatars", playerId, `${filename}.jpg`)
+    );
+  }
+
+  const response = await fetch(selfieUrl, { cache: "no-store", signal });
+  if (!response.ok) {
+    throw new Error(`Could not load saved seed image (${response.status})`);
+  }
+  return Buffer.from(await response.arrayBuffer());
+}
+
+export async function deleteBallerAssets(urls: Array<string | null | undefined>) {
+  const uniqueUrls = [...new Set(urls.filter((url): url is string => !!url))];
+  const results = await Promise.allSettled(
+    uniqueUrls.map(async (url) => {
+      if (url.startsWith("/avatars/")) {
+        const pathname = new URL(url, "http://local").pathname;
+        const [, , playerId, state] = pathname.split("/");
+        if (!playerId || !state) return;
+        try {
+          await unlink(
+            join(process.cwd(), ".local", "avatars", playerId, `${state}.jpg`)
+          );
+        } catch (err) {
+          if (
+            !(err instanceof Error) ||
+            !("code" in err) ||
+            err.code !== "ENOENT"
+          ) {
+            throw err;
+          }
+        }
+        return;
+      }
+
+      const blobUrl = new URL(url);
+      blobUrl.search = "";
+      await del(blobUrl.toString());
+    })
+  );
+
+  for (const result of results) {
+    if (result.status === "rejected") {
+      console.warn(
+        "[baller-gen] failed to delete superseded asset:",
+        result.reason
+      );
+    }
+  }
 }
 
 // ---------------- Pipeline ----------------
@@ -145,17 +204,27 @@ export async function generateBallerAvatarVariants(args: {
     Buffer
   >;
   const edit = getImageEditor();
+  const generationId = randomUUID();
   for (const state of states) {
-    const prompt = buildBallerPrompt(archetype, freeform, state);
+    const prompt = buildBallerPrompt(archetype, freeform, state, playerId);
     buffers[state] = await edit(selfieBuf, prompt, signal);
   }
 
-  // Stable per-player blob keys. Regen overwrites in place; the ?v= suffix
-  // pushes new bytes through the browser cache.
+  // Upload every new state under immutable keys, then the caller swaps DB URLs
+  // in one update only after all three assets are confirmed written.
   const [neutralUrl, victoryUrl, defeatedUrl] = await Promise.all([
-    uploadPortrait(`avatars/${playerId}/neutral.jpg`, buffers.neutral),
-    uploadPortrait(`avatars/${playerId}/victory.jpg`, buffers.victory),
-    uploadPortrait(`avatars/${playerId}/defeated.jpg`, buffers.defeated),
+    uploadPortrait(
+      `avatars/${playerId}/neutral-${generationId}.jpg`,
+      buffers.neutral
+    ),
+    uploadPortrait(
+      `avatars/${playerId}/victory-${generationId}.jpg`,
+      buffers.victory
+    ),
+    uploadPortrait(
+      `avatars/${playerId}/defeated-${generationId}.jpg`,
+      buffers.defeated
+    ),
   ]);
 
   return {

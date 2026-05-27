@@ -120,6 +120,7 @@ export default async function PlayerPage({
         <div className="mt-6">
           <BallerForm
             playerId={player.id}
+            hasSeedImage={!!player.selfieUrl}
             defaultArchetype={
               isBallerArchetype(player.ballerArchetype ?? "")
                 ? (player.ballerArchetype as Parameters<

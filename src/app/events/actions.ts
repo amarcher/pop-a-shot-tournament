@@ -19,6 +19,7 @@ import {
 import {
   getEvent,
   getLeagueById,
+  getPlayer,
   getRoster,
   listLeaguePlayers,
   setBallerJobError,
@@ -27,7 +28,9 @@ import {
   setEventStatus,
 } from "@/db/queries";
 import {
+  deleteBallerAssets,
   generateBallerAvatarVariants,
+  loadBallerSelfieFromUrl,
   normalizeSelfieToSquareJpeg,
   uploadBallerSelfie,
 } from "@/lib/baller";
@@ -148,13 +151,34 @@ export async function generateBallerAction(formData: FormData) {
   if (!isBallerArchetype(archetypeRaw)) {
     throw new Error(`Unknown archetype: ${archetypeRaw}`);
   }
-  if (!(selfie instanceof File) || selfie.size === 0) {
+
+  const player = await getPlayer(playerId);
+  if (!player) throw new Error("Player not found");
+
+  const hasNewSelfie = selfie instanceof File && selfie.size > 0;
+  if (!hasNewSelfie && !player.selfieUrl) {
     throw new Error("Selfie file required");
   }
+  const supersededAssetUrls = [
+    player.avatarNeutralUrl,
+    player.avatarVictoryUrl,
+    player.avatarDefeatedUrl,
+    hasNewSelfie ? player.selfieUrl : null,
+  ];
 
-  const rawSelfie = Buffer.from(await selfie.arrayBuffer());
-  const selfieBuf = await normalizeSelfieToSquareJpeg(rawSelfie);
-  const selfieUrl = await uploadBallerSelfie(playerId, selfieBuf);
+  const { selfieBuf, selfieUrl } = hasNewSelfie
+    ? await (async () => {
+        const rawSelfie = Buffer.from(await selfie.arrayBuffer());
+        const normalized = await normalizeSelfieToSquareJpeg(rawSelfie);
+        return {
+          selfieBuf: normalized,
+          selfieUrl: await uploadBallerSelfie(playerId, normalized),
+        };
+      })()
+    : {
+        selfieBuf: await loadBallerSelfieFromUrl(playerId, player.selfieUrl!),
+        selfieUrl: player.selfieUrl!,
+      };
 
   await setBallerJobStarted(playerId, archetypeRaw, selfieUrl);
 
@@ -177,11 +201,14 @@ export async function generateBallerAction(formData: FormData) {
       });
       const urls = { selfieUrl, ...avatars };
       await setBallerPortraits(playerId, urls);
+      await deleteBallerAssets(supersededAssetUrls);
+      revalidatePath(`/players/${playerId}`);
       const ms = Date.now() - startedAt;
       console.log(`[baller-gen] done for ${playerId} in ${ms}ms`);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       await setBallerJobError(playerId, msg);
+      revalidatePath(`/players/${playerId}`);
       console.error(`[baller-gen] failed for ${playerId}:`, err);
     }
   });
